@@ -18,9 +18,10 @@ class Config:
     max_adv_pct: float = 0.05                 # max order notional vs 20-day avg dollar volume
     min_price: float = 0.50                   # reject ultra-penny stocks
     slippage_bps: float = 15.0                # fallback slippage when no live bid/ask
-    commission_per_share: float = 0.01        # Canadian discount-broker style
-    commission_min: float = 4.95
-    commission_max: float = 9.95
+    # IBKR Canada fixed pricing (the realistic API broker for a future live version)
+    commission_per_share: float = 0.01
+    commission_min: float = 1.00
+    commission_max_pct: float = 0.005         # capped at 0.5% of trade value
     allowed_suffixes: tuple = (".TO", ".V")   # TSX and TSX Venture
 
     # --- Benchmarks ---

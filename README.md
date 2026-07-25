@@ -11,8 +11,10 @@ pay off in days to one month.
 - **Paper broker** (`stockai/broker.py`, SQLite in `data/stockai.db`)
   - Starts with **$100,000 CAD**.
   - Fills at real prices: crosses the live bid/ask when available, otherwise
-    last price ± 15 bps slippage. Commission is Canadian-discount-broker style:
-    $0.01/share, min $4.95, max $9.95.
+    last price ± 15 bps slippage. Commissions mimic Interactive Brokers Canada
+    fixed pricing ($0.01/share, min $1.00, capped at 0.5% of trade value) —
+    the broker a future real-money version would use, so paper results
+    translate directly.
   - Enforces market hours (9:30–16:00 ET, TSX holidays). Orders placed while
     closed queue as **market-on-open** and fill at the next session's open.
   - Hard risk rules the AI cannot override: long-only, CAD listings only,

@@ -201,9 +201,12 @@ class Broker:
 
     # ---------- fills ----------
 
-    def _commission(self, shares: int) -> float:
-        c = shares * self.cfg.commission_per_share
-        return round(min(max(c, self.cfg.commission_min), self.cfg.commission_max), 2)
+    def _commission(self, shares: int, price: float) -> float:
+        """IBKR Canada fixed pricing: per-share, floor $1, cap 0.5% of trade value
+        (the cap overrides the floor on very small orders, matching IBKR)."""
+        c = max(shares * self.cfg.commission_per_share, self.cfg.commission_min)
+        cap = self.cfg.commission_max_pct * shares * price
+        return round(min(c, cap) if cap > 0 else c, 2)
 
     def _fill_price(self, side: str, q: dict) -> float:
         """Realistic fill: cross the spread if book data is sane, else last + slippage."""
@@ -255,11 +258,11 @@ class Broker:
         shares = int(amount_cad // price)
         if shares <= 0:
             return {"status": "rejected", "reason": f"amount_cad {amount_cad} buys 0 shares at ${price}."}
-        commission = self._commission(shares)
+        commission = self._commission(shares, price)
         cost = shares * price + commission
         while cost > self.cash and shares > 0:
             shares -= 1
-            commission = self._commission(shares)
+            commission = self._commission(shares, price)
             cost = shares * price + commission
         if shares <= 0:
             return {"status": "rejected",
@@ -336,7 +339,7 @@ class Broker:
             price = self._fill_price("sell", q)
         price = round(price, 3)
 
-        commission = self._commission(shares)
+        commission = self._commission(shares, price)
         proceeds = shares * price - commission
         realized = round((price - pos["avg_cost"]) * shares - commission, 2)
 
