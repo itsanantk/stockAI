@@ -1,0 +1,321 @@
+"""Local dashboard: generates a self-contained HTML page from the database.
+
+`python agent.py dashboard` writes data/dashboard.html and opens it.
+No external assets — inline CSS/JS/SVG, light + dark mode.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import html
+import json
+
+from . import market
+from .broker import Broker
+from .config import Config, DATA_DIR
+
+DASHBOARD_PATH = DATA_DIR / "dashboard.html"
+
+
+def _payload(broker: Broker, cfg: Config) -> dict:
+    perf = broker.performance()
+    zsp0 = tsx0 = None
+    for r in broker.db.execute("SELECT * FROM benchmarks"):
+        if r["symbol"] == cfg.benchmark_sp500_cad:
+            zsp0 = r["inception_price"]
+        elif r["symbol"] == cfg.benchmark_tsx:
+            tsx0 = r["inception_price"]
+
+    series = []
+    for r in broker.db.execute("SELECT * FROM snapshots ORDER BY ts"):
+        series.append({
+            "ts": r["ts"],
+            "portfolio": round(r["equity"] / broker.starting_cash * 100, 3),
+            "sp500": round(r["bench_sp500_cad"] / zsp0 * 100, 3)
+            if (r["bench_sp500_cad"] and zsp0) else None,
+            "tsx": round(r["bench_tsx"] / tsx0 * 100, 3)
+            if (r["bench_tsx"] and tsx0) else None,
+        })
+
+    trades = [dict(r) for r in broker.db.execute("SELECT * FROM trades ORDER BY id DESC LIMIT 60")]
+    notes = broker.latest_notes(1)
+    return {
+        "dailies": broker.daily_summaries(7),
+        "generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "market": market.market_status(),
+        "perf": perf,
+        "series": series,
+        "positions": broker.positions_with_prices(),
+        "pending": broker.pending(),
+        "trades": trades,
+        "latest_note": notes[0] if notes else None,
+    }
+
+
+def generate(broker: Broker, cfg: Config) -> str:
+    data = _payload(broker, cfg)
+    page = _TEMPLATE.replace("__DATA__", json.dumps(data, default=str)) \
+                    .replace("__TITLE__", html.escape("stockAI — Canadian AI portfolio"))
+    DASHBOARD_PATH.write_text(page, encoding="utf-8")
+    return str(DASHBOARD_PATH)
+
+
+_TEMPLATE = r"""<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+  .viz-root, :root {
+    color-scheme: light;
+    --page:      #f9f9f7; --surface-1: #fcfcfb;
+    --ink-1:     #0b0b0b; --ink-2:     #52514e; --ink-muted: #898781;
+    --grid:      #e1e0d9; --baseline:  #c3c2b7;
+    --border:    rgba(11,11,11,0.10);
+    --series-1:  #2a78d6; --series-2:  #eb6834; --series-3:  #1baf7a;
+    --good:      #006300; --bad:       #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:      #0d0d0d; --surface-1: #1a1a19;
+      --ink-1:     #ffffff; --ink-2:     #c3c2b7; --ink-muted: #898781;
+      --grid:      #2c2c2a; --baseline:  #383835;
+      --border:    rgba(255,255,255,0.10);
+      --series-1:  #3987e5; --series-2:  #d95926; --series-3:  #199e70;
+      --good:      #0ca30c; --bad:       #d03b3b;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--page); color: var(--ink-1);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px; max-width: 1060px; margin: 0 auto;
+  }
+  h1 { font-size: 20px; font-weight: 650; }
+  h2 { font-size: 13px; font-weight: 600; color: var(--ink-2);
+       text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
+  .sub { color: var(--ink-muted); font-size: 12.5px; margin-top: 4px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border);
+          border-radius: 10px; padding: 16px 18px; margin-top: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr));
+           gap: 12px; margin-top: 16px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border);
+          border-radius: 10px; padding: 14px 16px; }
+  .tile .label { font-size: 12px; color: var(--ink-2); }
+  .tile .value { font-size: 26px; font-weight: 650; margin-top: 4px; }
+  .tile .delta { font-size: 12.5px; margin-top: 2px; }
+  .up   { color: var(--good); }
+  .down { color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--ink-muted); font-weight: 500;
+       border-bottom: 1px solid var(--baseline); padding: 5px 8px; }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--grid);
+       font-variant-numeric: tabular-nums; }
+  td.reason { color: var(--ink-2); font-size: 12.5px; max-width: 420px; }
+  .num { text-align: right; }
+  .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--ink-2);
+            margin-bottom: 8px; flex-wrap: wrap; }
+  .legend .swatch { display: inline-block; width: 10px; height: 10px;
+                    border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  #chartwrap { position: relative; overflow-x: auto; }
+  #tooltip { position: absolute; pointer-events: none; display: none;
+             background: var(--surface-1); border: 1px solid var(--border);
+             border-radius: 8px; padding: 8px 10px; font-size: 12px;
+             box-shadow: 0 4px 14px rgba(0,0,0,.12); white-space: nowrap; z-index: 5; }
+  #tooltip .t { color: var(--ink-muted); margin-bottom: 3px; }
+  pre.note { white-space: pre-wrap; font-family: inherit; font-size: 13px;
+             color: var(--ink-2); line-height: 1.5; }
+  .empty { color: var(--ink-muted); font-size: 13px; }
+</style></head>
+<body>
+<h1>stockAI — Canadian AI portfolio</h1>
+<div class="sub" id="subline"></div>
+
+<div class="tiles" id="tiles"></div>
+
+<div class="card">
+  <h2>Performance, indexed to 100 at inception</h2>
+  <div class="legend" id="legend"></div>
+  <div id="chartwrap"><div id="tooltip"></div><svg id="chart" width="1000" height="300"></svg></div>
+</div>
+
+<div class="card"><h2>Open positions</h2><div id="positions"></div></div>
+<div class="card"><h2>Pending market-on-open orders</h2><div id="pending"></div></div>
+<div class="card"><h2>Daily summaries</h2><div id="dailies"></div></div>
+<div class="card"><h2>Trade log (AI reasoning included)</h2><div id="trades"></div></div>
+<div class="card"><h2>Latest AI note (its memory)</h2><div id="note"></div></div>
+
+<script>
+const D = __DATA__;
+const fmt$ = x => x == null ? "-" : x.toLocaleString("en-CA", {style:"currency", currency:"CAD"});
+const pct = x => (x >= 0 ? "+" : "") + x.toFixed(2) + "%";
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+document.getElementById("subline").textContent =
+  `Generated ${D.generated} · Market ${D.market.session} (${D.market.detail}) · ${D.market.now_toronto}`;
+
+/* ---- stat tiles ---- */
+const perf = D.perf;
+const sp = perf.benchmarks["ZSP.TO"] || null;
+const alpha = perf.alpha_vs_sp500_pct;
+const tiles = [
+  {label: "Equity", value: fmt$(perf.equity), delta: pct(perf.return_pct) + " since inception", cls: perf.return_pct >= 0 ? "up" : "down"},
+  {label: "Cash", value: fmt$(perf.cash), delta: (100 * perf.cash / perf.equity).toFixed(0) + "% of equity", cls: ""},
+  {label: "S&P 500 (ZSP.TO)", value: sp ? pct(sp.return_pct) : "-", delta: "same period", cls: sp && sp.return_pct >= 0 ? "up" : "down"},
+  {label: "Alpha vs S&P 500", value: alpha == null ? "-" : pct(alpha),
+   delta: alpha == null ? "" : (alpha >= 0 ? "beating the index" : "trailing the index"),
+   cls: alpha >= 0 ? "up" : "down"},
+];
+document.getElementById("tiles").innerHTML = tiles.map(t =>
+  `<div class="tile"><div class="label">${t.label}</div><div class="value">${t.value}</div>
+   <div class="delta ${t.cls}">${t.delta}</div></div>`).join("");
+
+/* ---- chart ---- */
+const SERIES = [
+  {key: "portfolio", name: "Portfolio", color: "var(--series-1)"},
+  {key: "sp500",     name: "S&P 500 (ZSP.TO)", color: "var(--series-2)"},
+  {key: "tsx",       name: "TSX Composite", color: "var(--series-3)"},
+];
+document.getElementById("legend").innerHTML = SERIES.map(s =>
+  `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join("");
+
+const svg = document.getElementById("chart");
+const W = 1000, H = 300, M = {t: 14, r: 158, b: 26, l: 46};
+const pts = D.series.map(r => ({...r, t: new Date(r.ts.replace(" ", "T")).getTime()}));
+
+function drawChart() {
+  if (pts.length === 0) { svg.outerHTML = '<div class="empty">No snapshots yet — run a session.</div>'; return; }
+  const xs = pts.map(p => p.t);
+  let vals = [];
+  for (const s of SERIES) for (const p of pts) if (p[s.key] != null) vals.push(p[s.key]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  let lo = Math.min(...vals, 99.5), hi = Math.max(...vals, 100.5);
+  const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+  const X = t => x0 === x1 ? (M.l + (W - M.l - M.r) / 2) : M.l + (t - x0) / (x1 - x0) * (W - M.l - M.r);
+  const Y = v => M.t + (hi - v) / (hi - lo) * (H - M.t - M.b);
+  let g = "";
+  // gridlines + y ticks
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const v = lo + (hi - lo) * i / steps, y = Y(v);
+    g += `<line x1="${M.l}" y1="${y}" x2="${W - M.r}" y2="${y}" stroke="var(--grid)" stroke-width="1"/>`;
+    g += `<text x="${M.l - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--ink-muted)">${v.toFixed(1)}</text>`;
+  }
+  // baseline at 100
+  if (lo < 100 && hi > 100)
+    g += `<line x1="${M.l}" y1="${Y(100)}" x2="${W - M.r}" y2="${Y(100)}" stroke="var(--baseline)" stroke-width="1" stroke-dasharray="4 3"/>`;
+  // x ticks: first, middle, last — show times when the span is under 2 days
+  const shortSpan = (x1 - x0) < 48 * 3600 * 1000;
+  const tickLabel = p => shortSpan ? p.ts.slice(5, 16) : p.ts.slice(0, 10);
+  const tickIdx = [...new Set([0, Math.floor((pts.length - 1) / 2), pts.length - 1])];
+  let lastTickX = -1e9;
+  for (const i of tickIdx) {
+    const tx = X(pts[i].t);
+    if (tx - lastTickX < 80) continue;
+    lastTickX = tx;
+    g += `<text x="${tx}" y="${H - 6}" text-anchor="middle" font-size="11" fill="var(--ink-muted)">${tickLabel(pts[i])}</text>`;
+  }
+  // lines
+  const endLabels = [];
+  for (const s of SERIES) {
+    const path = pts.filter(p => p[s.key] != null)
+      .map((p, i) => (i === 0 ? "M" : "L") + X(p.t).toFixed(1) + " " + Y(p[s.key]).toFixed(1)).join(" ");
+    if (!path) continue;
+    g += `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
+    const lastPt = [...pts].reverse().find(p => p[s.key] != null);
+    if (pts.length === 1 || x0 === x1)
+      g += `<circle cx="${X(lastPt.t)}" cy="${Y(lastPt[s.key])}" r="4" fill="${s.color}"/>`;
+    endLabels.push({y: Y(lastPt[s.key]), color: s.color,
+                    text: `${s.name.split(" (")[0]} ${lastPt[s.key].toFixed(1)}`});
+  }
+  // end labels with collision avoidance: sort by y, enforce 15px spacing
+  endLabels.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < endLabels.length; i++)
+    if (endLabels[i].y - endLabels[i - 1].y < 15) endLabels[i].y = endLabels[i - 1].y + 15;
+  for (const l of endLabels) {
+    g += `<circle cx="${W - M.r + 10}" cy="${l.y}" r="3.5" fill="${l.color}"/>`;
+    g += `<text x="${W - M.r + 18}" y="${l.y + 4}" font-size="12" fill="var(--ink-1)">${l.text}</text>`;
+  }
+  // crosshair group (populated on hover)
+  g += `<g id="hoverg"></g>`;
+  svg.innerHTML = g;
+
+  // hover layer
+  const tip = document.getElementById("tooltip");
+  svg.addEventListener("mousemove", ev => {
+    const rect = svg.getBoundingClientRect();
+    const mx = (ev.clientX - rect.left) * (W / rect.width);
+    let best = null, bd = 1e18;
+    for (const p of pts) { const d = Math.abs(X(p.t) - mx); if (d < bd) { bd = d; best = p; } }
+    if (!best) return;
+    const hx = X(best.t);
+    let hg = `<line x1="${hx}" y1="${M.t}" x2="${hx}" y2="${H - M.b}" stroke="var(--baseline)" stroke-width="1"/>`;
+    for (const s of SERIES) if (best[s.key] != null)
+      hg += `<circle cx="${hx}" cy="${Y(best[s.key])}" r="4.5" fill="${s.color}" stroke="var(--surface-1)" stroke-width="2"/>`;
+    document.getElementById("hoverg").innerHTML = hg;
+    tip.style.display = "block";
+    tip.innerHTML = `<div class="t">${best.ts}</div>` + SERIES.map(s =>
+      best[s.key] == null ? "" :
+      `<div><span class="swatch" style="background:${s.color};display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px"></span>${s.name}: <b>${best[s.key].toFixed(2)}</b></div>`).join("");
+    const wrap = document.getElementById("chartwrap").getBoundingClientRect();
+    let tx = ev.clientX - wrap.left + 14;
+    if (tx + 180 > wrap.width) tx -= 200;
+    tip.style.left = tx + "px";
+    tip.style.top = (ev.clientY - wrap.top - 10) + "px";
+  });
+  svg.addEventListener("mouseleave", () => {
+    tip.style.display = "none";
+    document.getElementById("hoverg").innerHTML = "";
+  });
+}
+drawChart();
+
+/* ---- tables ---- */
+function table(id, headers, rows, empty) {
+  const el = document.getElementById(id);
+  if (!rows.length) { el.innerHTML = `<div class="empty">${empty}</div>`; return; }
+  el.innerHTML = `<table><thead><tr>${headers.map(h =>
+    `<th class="${h.num ? "num" : ""}">${h.t}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(r => `<tr>${r.map((c, i) =>
+      `<td class="${headers[i].num ? "num" : ""} ${headers[i].cls || ""} ${c && c.cls ? c.cls : ""}">${c && c.v !== undefined ? c.v : c}</td>`).join("")}</tr>`).join("") +
+    "</tbody></table>";
+}
+
+table("positions",
+  [{t:"Ticker"},{t:"Shares",num:1},{t:"Avg cost",num:1},{t:"Last",num:1},{t:"Value",num:1},{t:"P&L",num:1},{t:"P&L %",num:1},{t:"Today",num:1}],
+  D.positions.map(p => [
+    esc(p.ticker), p.shares, p.avg_cost.toFixed(2),
+    p.last != null ? p.last.toFixed(2) : "-",
+    p.market_value != null ? fmt$(p.market_value) : "-",
+    p.unrealized_pnl != null ? {v: fmt$(p.unrealized_pnl), cls: p.unrealized_pnl >= 0 ? "up" : "down"} : "-",
+    p.unrealized_pct != null ? {v: pct(p.unrealized_pct), cls: p.unrealized_pct >= 0 ? "up" : "down"} : "-",
+    p.day_change_pct != null ? {v: pct(p.day_change_pct), cls: p.day_change_pct >= 0 ? "up" : "down"} : "-",
+  ]), "No open positions — the account is in cash.");
+
+table("pending",
+  [{t:"Placed"},{t:"Side"},{t:"Ticker"},{t:"Size",num:1},{t:"Reason",cls:"reason"}],
+  D.pending.map(o => [esc(o.created_ts), o.side.toUpperCase(), esc(o.ticker),
+    o.amount_cad ? fmt$(o.amount_cad) : o.shares + " sh", esc(o.reason || "")]),
+  "None.");
+
+table("trades",
+  [{t:"Time"},{t:"Side"},{t:"Ticker"},{t:"Shares",num:1},{t:"Price",num:1},{t:"Realized",num:1},{t:"Reason",cls:"reason"}],
+  D.trades.map(t => [esc(t.ts), t.side.toUpperCase(), esc(t.ticker), t.shares,
+    Number(t.price).toFixed(3),
+    t.realized_pnl != null ? {v: fmt$(t.realized_pnl), cls: t.realized_pnl >= 0 ? "up" : "down"} : "-",
+    esc(t.reason || "")]),
+  "No trades yet.");
+
+document.getElementById("dailies").innerHTML = (D.dailies && D.dailies.length)
+  ? D.dailies.map((d, i) =>
+      `<details ${i === 0 ? "open" : ""}><summary style="cursor:pointer;font-weight:600;padding:4px 0">${esc(d.date)}</summary>
+       <pre class="note">${esc(d.content)}</pre></details>`).join("")
+  : '<div class="empty">No daily summaries yet — generated by <code>python agent.py daily</code> after the close.</div>';
+
+document.getElementById("note").innerHTML = D.latest_note
+  ? `<div class="sub">${esc(D.latest_note.ts)}</div><pre class="note">${esc(D.latest_note.content)}</pre>`
+  : '<div class="empty">No notes yet.</div>';
+</script>
+</body></html>
+"""

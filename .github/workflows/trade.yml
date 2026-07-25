@@ -1,0 +1,88 @@
+# stockAI — self-running trading sessions + auto-updating dashboard.
+#
+# Schedule is UTC. 14:35/19:45 UTC = 10:35/15:45 Toronto during EDT (summer).
+# In winter (EST) these fire at 09:35/14:45 ET — still inside market hours.
+# --skip-if-closed makes holiday firings a no-op.
+#
+# Required repo secret (Settings -> Secrets -> Actions):
+#   CLAUDE_CODE_OAUTH_TOKEN  — from `claude setup-token` (uses your Claude
+#                              subscription; no API credits needed)
+# Optional: ANTHROPIC_API_KEY — if set (with credits), the API backend is used.
+
+name: stockAI trading session
+
+on:
+  schedule:
+    - cron: "35 14 * * 1-5"   # morning session
+    - cron: "45 19 * * 1-5"   # afternoon session + daily summary
+  workflow_dispatch: {}       # manual "Run workflow" button
+
+concurrency:
+  group: trading
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run trading session
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PYTHONUNBUFFERED: "1"
+        run: python agent.py run --skip-if-closed
+
+      - name: Daily summary
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python agent.py daily
+
+      - name: Commit portfolio state
+        run: |
+          git config user.name "stockai-bot"
+          git config user.email "stockai-bot@users.noreply.github.com"
+          git add data/stockai.db data/dashboard.html
+          git commit -m "session $(date -u '+%Y-%m-%d %H:%M UTC')" || echo "nothing to commit"
+          git pull --rebase origin ${GITHUB_REF_NAME}
+          git push
+
+      - name: Prepare dashboard site
+        run: |
+          mkdir -p _site
+          cp data/dashboard.html _site/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: trade
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

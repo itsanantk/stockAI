@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>stockAI — Canadian AI portfolio</title>
+<style>
+  .viz-root, :root {
+    color-scheme: light;
+    --page:      #f9f9f7; --surface-1: #fcfcfb;
+    --ink-1:     #0b0b0b; --ink-2:     #52514e; --ink-muted: #898781;
+    --grid:      #e1e0d9; --baseline:  #c3c2b7;
+    --border:    rgba(11,11,11,0.10);
+    --series-1:  #2a78d6; --series-2:  #eb6834; --series-3:  #1baf7a;
+    --good:      #006300; --bad:       #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:      #0d0d0d; --surface-1: #1a1a19;
+      --ink-1:     #ffffff; --ink-2:     #c3c2b7; --ink-muted: #898781;
+      --grid:      #2c2c2a; --baseline:  #383835;
+      --border:    rgba(255,255,255,0.10);
+      --series-1:  #3987e5; --series-2:  #d95926; --series-3:  #199e70;
+      --good:      #0ca30c; --bad:       #d03b3b;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--page); color: var(--ink-1);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px; max-width: 1060px; margin: 0 auto;
+  }
+  h1 { font-size: 20px; font-weight: 650; }
+  h2 { font-size: 13px; font-weight: 600; color: var(--ink-2);
+       text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
+  .sub { color: var(--ink-muted); font-size: 12.5px; margin-top: 4px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border);
+          border-radius: 10px; padding: 16px 18px; margin-top: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr));
+           gap: 12px; margin-top: 16px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border);
+          border-radius: 10px; padding: 14px 16px; }
+  .tile .label { font-size: 12px; color: var(--ink-2); }
+  .tile .value { font-size: 26px; font-weight: 650; margin-top: 4px; }
+  .tile .delta { font-size: 12.5px; margin-top: 2px; }
+  .up   { color: var(--good); }
+  .down { color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--ink-muted); font-weight: 500;
+       border-bottom: 1px solid var(--baseline); padding: 5px 8px; }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--grid);
+       font-variant-numeric: tabular-nums; }
+  td.reason { color: var(--ink-2); font-size: 12.5px; max-width: 420px; }
+  .num { text-align: right; }
+  .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--ink-2);
+            margin-bottom: 8px; flex-wrap: wrap; }
+  .legend .swatch { display: inline-block; width: 10px; height: 10px;
+                    border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  #chartwrap { position: relative; overflow-x: auto; }
+  #tooltip { position: absolute; pointer-events: none; display: none;
+             background: var(--surface-1); border: 1px solid var(--border);
+             border-radius: 8px; padding: 8px 10px; font-size: 12px;
+             box-shadow: 0 4px 14px rgba(0,0,0,.12); white-space: nowrap; z-index: 5; }
+  #tooltip .t { color: var(--ink-muted); margin-bottom: 3px; }
+  pre.note { white-space: pre-wrap; font-family: inherit; font-size: 13px;
+             color: var(--ink-2); line-height: 1.5; }
+  .empty { color: var(--ink-muted); font-size: 13px; }
+</style></head>
+<body>
+<h1>stockAI — Canadian AI portfolio</h1>
+<div class="sub" id="subline"></div>
+
+<div class="tiles" id="tiles"></div>
+
+<div class="card">
+  <h2>Performance, indexed to 100 at inception</h2>
+  <div class="legend" id="legend"></div>
+  <div id="chartwrap"><div id="tooltip"></div><svg id="chart" width="1000" height="300"></svg></div>
+</div>
+
+<div class="card"><h2>Open positions</h2><div id="positions"></div></div>
+<div class="card"><h2>Pending market-on-open orders</h2><div id="pending"></div></div>
+<div class="card"><h2>Daily summaries</h2><div id="dailies"></div></div>
+<div class="card"><h2>Trade log (AI reasoning included)</h2><div id="trades"></div></div>
+<div class="card"><h2>Latest AI note (its memory)</h2><div id="note"></div></div>
+
+<script>
+const D = {"dailies": [{"date": "2026-07-24", "ts": "2026-07-24 21:49:22", "content": "# Daily summary \u2014 2026-07-24\n\nEquity $100,000.00  |  day P&L +0.00 (+0.00%)\nSince inception: +0.00% vs S&P 500 +0.00% (alpha +0.00%)  |  cash $100,000.00\n\n## Trades today\n- none\n\n## Open positions\n- none (all cash)\n\n## Pending market-on-open orders\n- BUY IMO.TO $15,000\n- BUY SU.TO $13,000\n- BUY TOU.TO $12,000\n- BUY CNQ.TO $9,000\n\n## AI session recap\n**Session summary**\n\nThe dominant fact this week isn't on the TSX tape \u2014 it's that Iran re-closed the Strait of Hormuz on July 11, throttling ~20% of seaborne oil, with US strikes and Houthi tanker attacks escalating. WTI is $90, Brent recently above $100. Meanwhile my benchmark, the S&P 500, is wobbling on AI-capex fear and 4.2% inflation with ~58% odds of a September Fed *hike*. Long Canadian energy is therefore an alpha bet that's naturally anti-correlated to what's hurting ZSP.TO.\n\n**Bought (queued market-on-open Monday, $49k / 49%):**\n- **IMO $15k** \u2014 integrated; refining cracks widen when crude logistics break, cushioning a drop in crude itself. Had the best relative strength Friday (flat while pure upstream fell 1-1.4%) and sits $10 below its 52-week high.\n- **SU $13k** \u2014 integrated with Canada's largest downstream. Sized at 13% rather than larger precisely because it's already +22% off its June low.\n- **TOU $12k** \u2014 deliberately the *non-oil* leg: LNG Canada feedgas, AECO discount compressing, NGL realizations +30%. It rose Friday while oil names fell, confirming an independent driver.\n- **CNQ $9k** \u2014 purest upstream beta, smallest size because it's most extended and has no refining cushion.\n\n**Passed:** TRI (today's +5% is a bounce off a 15% drawdown, not a breakout \u2014 the KKR deal landed at the top), CCO (down 32%, falling knife), gold miners (gold is down 28% from January \u2014 this is a downtrend, not a dip), and tech (rate-hike plus AI-capex risk).\n\n**The main risk I'm managing:** four energy names is really *one* bet, and a US-Iran deal would hit all of them at once \u2014 that already happened once, in June, taking Brent under $80. So I weighted toward integrateds, added a gas name, held 51% cash, and wrote a hard rule into my notes: any credible de-escalation headline and I sell CNQ first, then the integrateds, same day, regardless of price.\n\nWatching Celestica's Q2 print Monday for a read on AI-hardware sentiment, and Cameco for a higher low before touching uranium.\n\nOne housekeeping note: the claude.ai **Uber, Uber Eats, and ZipRecruiter** connectors need authorization via your claude.ai connector settings \u2014 they're unavailable until then. They weren't needed for this session.\n\nSources: [Hormuz/oil stocks](https://finance.yahoo.com/energy/articles/five-oil-gas-stocks-ready-210000105.html) \u00b7 [Market July 24](https://finance.yahoo.com/markets/stocks/articles/stock-market-today-july-24-212453736.html) \u00b7 [Gold outlook](https://goldsilver.com/industry-news/article/gold-price-outlook-july-2026/) \u00b7 [Shell/ARC](https://www.cbc.ca/news/canada/calgary/calgary-shell-arc-resources-montney-shale-9.7269998) \u00b7 [Tourmaline/LNG](https://rbnenergy.com/daily-posts/analyst-insight/q1-2026-earnings-calls-tourmaline-says-western-canadas-gas-glut-looks) \u00b7 [Celestica Q2 date](https://www.stocktitan.net/news/CLS/celestica-q2-2026-financial-results-and-conference-call-tuesday-july-c9s1r2j5kz4r.html) \u00b7 [Uranium](https://investingnews.com/uranium-forecast/) \u00b7 [BoC rates](https://www.bnnbloomberg.ca/investing/market-outlook/2026/07/16/market-outlook-bank-of-canada-could-hold-rates-through-2026/)"}], "generated": "2026-07-24 18:49", "market": {"now_toronto": "2026-07-24 21:49 EDT", "is_open": false, "session": "closed", "detail": "after-hours"}, "perf": {"starting_cash": 100000.0, "equity": 100000.0, "cash": 100000.0, "return_pct": 0.0, "benchmarks": {"ZSP.TO": {"inception": 114.41999816894531, "now": 114.42, "return_pct": 0.0}, "^GSPTSE": {"inception": 35369.1015625, "now": 35369.1, "return_pct": 0.0}}, "alpha_vs_sp500_pct": 0.0}, "series": [{"ts": "2026-07-24 21:29:39", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}, {"ts": "2026-07-24 21:29:59", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}, {"ts": "2026-07-24 21:35:26", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}, {"ts": "2026-07-24 21:40:14", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}, {"ts": "2026-07-24 21:40:52", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}], "positions": [], "pending": [{"id": 1, "created_ts": "2026-07-24 21:39:14", "ticker": "IMO.TO", "side": "buy", "amount_cad": 15000.0, "shares": null, "reason": "CATALYST: Strait of Hormuz re-closed July 11 by Iran's IRGC (~20% of seaborne oil throttled), US strikes on Iran, Houthi attacks on Saudi tankers. Brent recently >$100, WTI $90. Canadian barrels are the geopolitically safest supply on earth. Imperial is an INTEGRATED: refining cracks widen when crude logistics break, which cushions a pullback in crude itself \u2014 better risk/reward than pure upstream beta. TECHNICAL: orderly uptrend $158 (Jun 19) -> $181, best relative strength in the group today (-0.1% while CNQ -1.1%, CVE -1.4%). Sits $10 below 52w high $191.76, so not extended. TIMELINE: days to ~1 month. EXIT: target $200 (+10%); stop $168 (below the Jul 8 breakout and rising 20d). THESIS-BREAK: credible US-Iran de-escalation / Hormuz reopening headline -> exit immediately regardless of price, per the June MOU precedent that took Brent under $80."}, {"id": 2, "created_ts": "2026-07-24 21:39:18", "ticker": "SU.TO", "side": "buy", "amount_cad": 13000.0, "shares": null, "reason": "CATALYST: Same Hormuz supply-shock thesis. Suncor is integrated (upstream + Canada's largest refining/retail base), so it captures both crude realizations and widening downstream cracks from disrupted global product flows. Reporting-season tailwind: energy FCF at $90 WTI is very strong. TECHNICAL: powerful trend off the June 30 low $76.30 -> $93.48 (+22%), unbroken sequence of higher lows since Jul 2; today's -0.67% is a minor pause, not distribution. Acknowledged extension is why this is 13% not 20%. TIMELINE: days to ~1 month. EXIT: target $103; stop $85 (below the mid-July consolidation shelf). THESIS-BREAK: US-Iran deal / Hormuz reopens -> exit."}, {"id": 3, "created_ts": "2026-07-24 21:39:28", "ticker": "TOU.TO", "side": "buy", "amount_cad": 12000.0, "shares": null, "reason": "CATALYST: Deliberate NON-OIL driver to diversify the energy book. Tourmaline is Canada's largest gas producer (~80% gas). Independent catalysts: LNG Canada Phase 1 feedgas demand structurally lifting BC gas and compressing the AECO discount, Phase 2 cooperation agreement signed Mar 2026, and 2026 NGL/condensate realizations up >30% on global liquids strength. Management raised 2026/27 FCF outlook to ~$900M/yr; Q1 cash flow $862M. Shell's $22B takeout of ARC Resources (shareholders approved Jul 14, closing H2 2026) validates Montney asset value and removes a competitor from the public float. TECHNICAL: clean base $59 (Jun 29) -> $65.16 with higher lows since Jul 6; closed UP +0.42% today while oil-levered names fell \u2014 the tell that its driver is gas, not Hormuz. 52w high $70.57. TIMELINE: weeks. EXIT: target $72; stop $60 (below the July base). THESIS-BREAK: LNG Canada outage or AECO collapse."}, {"id": 4, "created_ts": "2026-07-24 21:39:33", "ticker": "CNQ.TO", "side": "buy", "amount_cad": 9000.0, "shares": null, "reason": "CATALYST: Highest-quality pure upstream leverage to the Hormuz crude shock \u2014 long-life, low-decline oil sands with the lowest sustaining capital among Canadian large caps, so incremental crude above ~$70 WTI drops almost straight to FCF and buybacks. TMX gives Pacific tidewater access, so Canadian barrels price off a tight global market rather than a landlocked discount. TECHNICAL: based at $55.89 (Jun 29) -> $66.20 (Jul 23), +18%; today's -1.09% pullback off the high is the entry. SIZED SMALLEST (9%) of the four deliberately: this is the most extended and the most exposed to a peace-deal reversal, having no refining cushion. TIMELINE: days to ~1 month. EXIT: target $73; stop $60 (below the Jul 14-16 consolidation). THESIS-BREAK: US-Iran de-escalation or Hormuz reopening -> exit first, ahead of the integrateds."}], "trades": [], "latest_note": {"ts": "2026-07-24 21:39:55", "content": "SESSION 1 \u2014 2026-07-24 (first session, deployed 49%, 51% cash)\n\nMACRO REGIME (drives everything):\n- Iran/IRGC re-closed Strait of Hormuz Jul 11 (~20% seaborne oil). US strikes on Iran; Houthis hit 2 Saudi tankers; Trump threatening Iranian infrastructure. Brent recently >$100, WTI $90.\n- US CPI 4.2% (3-yr high). Fed: ~58% odds of a SEPT HIKE. Bank of Canada on hold 2.25%.\n- S&P500 (my benchmark) wobbling on AI-capex fear \u2014 Alphabet raised 2026 capex to $195-205B and STILL sold off. Long Cdn energy is a deliberate anti-correlated alpha bet vs ZSP.TO.\n- Gold $4,056, DOWN 28% from Jan record $5,598. Miners badly damaged. DO NOT buy gold dips yet.\n\nPOSITIONS (all queued market-on-open Mon Jul 27):\n1. IMO.TO $15k @ ~$181 \u2014 integrated, refining cracks cushion crude drop. Best relative strength Jul 24. TGT $200, STOP $168.\n2. SU.TO $13k @ ~$93 \u2014 integrated, big downstream. Extended (+22% off Jun 30 low) hence 13% not 20%. TGT $103, STOP $85.\n3. TOU.TO $12k @ ~$65 \u2014 the NON-OIL leg. Gas/LNG Canada feedgas, AECO discount compressing, NGL realizations +30%, FCF ~$900M/yr. Rose while oil names fell. TGT $72, STOP $60.\n4. CNQ.TO $9k @ ~$65.5 \u2014 purest upstream beta, smallest size (most extended, no refining cushion). TGT $73, STOP $60.\n\n*** MASTER THESIS-BREAK: any credible US-Iran de-escalation / Hormuz reopening headline -> SELL CNQ FIRST, then SU/IMO, same day, regardless of price. Precedent: a June US-Iran MOU took Brent under $80 fast. This is one correlated bet \u2014 do not let it run against me on hope. ***\n\nWATCHLIST / entry levels:\n- CCO.TO $123.87 \u2014 uranium. Down 32% from 52w high $182.72. U3O8 recovered $73 from July low (peaked $80 June). FALLING KNIFE \u2014 wait for a higher low, buy only >$132 reclaim.\n- TRI.TO $127 \u2014 KKR $500M print JV (Jul 14) landed at the TOP. Chart is a knife: $142 (Jul 16) -> $119 (Jul 23) -> $127. No edge until it holds $130.\n- CLS.TO $430 \u2014 reports Q2 JUL 27. Fell 16% in 5 days into the print; still ~160% above GF value. Binary \u2014 watch the reaction, don't pre-position.\n- Canadian banks \u2014 stable NIM (~1.75%) but Q3 earnings not until late Aug. Too slow for swing horizon.\n\nLESSONS: Held 51% cash on purpose \u2014 4 energy names is ONE bet, and I entered Friday night so a weekend headline gaps me either way. Cash is the hedge. Diversify the NEXT buy into a genuinely uncorrelated driver, not more oil."}};
+const fmt$ = x => x == null ? "-" : x.toLocaleString("en-CA", {style:"currency", currency:"CAD"});
+const pct = x => (x >= 0 ? "+" : "") + x.toFixed(2) + "%";
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+document.getElementById("subline").textContent =
+  `Generated ${D.generated} · Market ${D.market.session} (${D.market.detail}) · ${D.market.now_toronto}`;
+
+/* ---- stat tiles ---- */
+const perf = D.perf;
+const sp = perf.benchmarks["ZSP.TO"] || null;
+const alpha = perf.alpha_vs_sp500_pct;
+const tiles = [
+  {label: "Equity", value: fmt$(perf.equity), delta: pct(perf.return_pct) + " since inception", cls: perf.return_pct >= 0 ? "up" : "down"},
+  {label: "Cash", value: fmt$(perf.cash), delta: (100 * perf.cash / perf.equity).toFixed(0) + "% of equity", cls: ""},
+  {label: "S&P 500 (ZSP.TO)", value: sp ? pct(sp.return_pct) : "-", delta: "same period", cls: sp && sp.return_pct >= 0 ? "up" : "down"},
+  {label: "Alpha vs S&P 500", value: alpha == null ? "-" : pct(alpha),
+   delta: alpha == null ? "" : (alpha >= 0 ? "beating the index" : "trailing the index"),
+   cls: alpha >= 0 ? "up" : "down"},
+];
+document.getElementById("tiles").innerHTML = tiles.map(t =>
+  `<div class="tile"><div class="label">${t.label}</div><div class="value">${t.value}</div>
+   <div class="delta ${t.cls}">${t.delta}</div></div>`).join("");
+
+/* ---- chart ---- */
+const SERIES = [
+  {key: "portfolio", name: "Portfolio", color: "var(--series-1)"},
+  {key: "sp500",     name: "S&P 500 (ZSP.TO)", color: "var(--series-2)"},
+  {key: "tsx",       name: "TSX Composite", color: "var(--series-3)"},
+];
+document.getElementById("legend").innerHTML = SERIES.map(s =>
+  `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join("");
+
+const svg = document.getElementById("chart");
+const W = 1000, H = 300, M = {t: 14, r: 158, b: 26, l: 46};
+const pts = D.series.map(r => ({...r, t: new Date(r.ts.replace(" ", "T")).getTime()}));
+
+function drawChart() {
+  if (pts.length === 0) { svg.outerHTML = '<div class="empty">No snapshots yet — run a session.</div>'; return; }
+  const xs = pts.map(p => p.t);
+  let vals = [];
+  for (const s of SERIES) for (const p of pts) if (p[s.key] != null) vals.push(p[s.key]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  let lo = Math.min(...vals, 99.5), hi = Math.max(...vals, 100.5);
+  const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+  const X = t => x0 === x1 ? (M.l + (W - M.l - M.r) / 2) : M.l + (t - x0) / (x1 - x0) * (W - M.l - M.r);
+  const Y = v => M.t + (hi - v) / (hi - lo) * (H - M.t - M.b);
+  let g = "";
+  // gridlines + y ticks
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const v = lo + (hi - lo) * i / steps, y = Y(v);
+    g += `<line x1="${M.l}" y1="${y}" x2="${W - M.r}" y2="${y}" stroke="var(--grid)" stroke-width="1"/>`;
+    g += `<text x="${M.l - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--ink-muted)">${v.toFixed(1)}</text>`;
+  }
+  // baseline at 100
+  if (lo < 100 && hi > 100)
+    g += `<line x1="${M.l}" y1="${Y(100)}" x2="${W - M.r}" y2="${Y(100)}" stroke="var(--baseline)" stroke-width="1" stroke-dasharray="4 3"/>`;
+  // x ticks: first, middle, last — show times when the span is under 2 days
+  const shortSpan = (x1 - x0) < 48 * 3600 * 1000;
+  const tickLabel = p => shortSpan ? p.ts.slice(5, 16) : p.ts.slice(0, 10);
+  const tickIdx = [...new Set([0, Math.floor((pts.length - 1) / 2), pts.length - 1])];
+  let lastTickX = -1e9;
+  for (const i of tickIdx) {
+    const tx = X(pts[i].t);
+    if (tx - lastTickX < 80) continue;
+    lastTickX = tx;
+    g += `<text x="${tx}" y="${H - 6}" text-anchor="middle" font-size="11" fill="var(--ink-muted)">${tickLabel(pts[i])}</text>`;
+  }
+  // lines
+  const endLabels = [];
+  for (const s of SERIES) {
+    const path = pts.filter(p => p[s.key] != null)
+      .map((p, i) => (i === 0 ? "M" : "L") + X(p.t).toFixed(1) + " " + Y(p[s.key]).toFixed(1)).join(" ");
+    if (!path) continue;
+    g += `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
+    const lastPt = [...pts].reverse().find(p => p[s.key] != null);
+    if (pts.length === 1 || x0 === x1)
+      g += `<circle cx="${X(lastPt.t)}" cy="${Y(lastPt[s.key])}" r="4" fill="${s.color}"/>`;
+    endLabels.push({y: Y(lastPt[s.key]), color: s.color,
+                    text: `${s.name.split(" (")[0]} ${lastPt[s.key].toFixed(1)}`});
+  }
+  // end labels with collision avoidance: sort by y, enforce 15px spacing
+  endLabels.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < endLabels.length; i++)
+    if (endLabels[i].y - endLabels[i - 1].y < 15) endLabels[i].y = endLabels[i - 1].y + 15;
+  for (const l of endLabels) {
+    g += `<circle cx="${W - M.r + 10}" cy="${l.y}" r="3.5" fill="${l.color}"/>`;
+    g += `<text x="${W - M.r + 18}" y="${l.y + 4}" font-size="12" fill="var(--ink-1)">${l.text}</text>`;
+  }
+  // crosshair group (populated on hover)
+  g += `<g id="hoverg"></g>`;
+  svg.innerHTML = g;
+
+  // hover layer
+  const tip = document.getElementById("tooltip");
+  svg.addEventListener("mousemove", ev => {
+    const rect = svg.getBoundingClientRect();
+    const mx = (ev.clientX - rect.left) * (W / rect.width);
+    let best = null, bd = 1e18;
+    for (const p of pts) { const d = Math.abs(X(p.t) - mx); if (d < bd) { bd = d; best = p; } }
+    if (!best) return;
+    const hx = X(best.t);
+    let hg = `<line x1="${hx}" y1="${M.t}" x2="${hx}" y2="${H - M.b}" stroke="var(--baseline)" stroke-width="1"/>`;
+    for (const s of SERIES) if (best[s.key] != null)
+      hg += `<circle cx="${hx}" cy="${Y(best[s.key])}" r="4.5" fill="${s.color}" stroke="var(--surface-1)" stroke-width="2"/>`;
+    document.getElementById("hoverg").innerHTML = hg;
+    tip.style.display = "block";
+    tip.innerHTML = `<div class="t">${best.ts}</div>` + SERIES.map(s =>
+      best[s.key] == null ? "" :
+      `<div><span class="swatch" style="background:${s.color};display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px"></span>${s.name}: <b>${best[s.key].toFixed(2)}</b></div>`).join("");
+    const wrap = document.getElementById("chartwrap").getBoundingClientRect();
+    let tx = ev.clientX - wrap.left + 14;
+    if (tx + 180 > wrap.width) tx -= 200;
+    tip.style.left = tx + "px";
+    tip.style.top = (ev.clientY - wrap.top - 10) + "px";
+  });
+  svg.addEventListener("mouseleave", () => {
+    tip.style.display = "none";
+    document.getElementById("hoverg").innerHTML = "";
+  });
+}
+drawChart();
+
+/* ---- tables ---- */
+function table(id, headers, rows, empty) {
+  const el = document.getElementById(id);
+  if (!rows.length) { el.innerHTML = `<div class="empty">${empty}</div>`; return; }
+  el.innerHTML = `<table><thead><tr>${headers.map(h =>
+    `<th class="${h.num ? "num" : ""}">${h.t}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(r => `<tr>${r.map((c, i) =>
+      `<td class="${headers[i].num ? "num" : ""} ${headers[i].cls || ""} ${c && c.cls ? c.cls : ""}">${c && c.v !== undefined ? c.v : c}</td>`).join("")}</tr>`).join("") +
+    "</tbody></table>";
+}
+
+table("positions",
+  [{t:"Ticker"},{t:"Shares",num:1},{t:"Avg cost",num:1},{t:"Last",num:1},{t:"Value",num:1},{t:"P&L",num:1},{t:"P&L %",num:1},{t:"Today",num:1}],
+  D.positions.map(p => [
+    esc(p.ticker), p.shares, p.avg_cost.toFixed(2),
+    p.last != null ? p.last.toFixed(2) : "-",
+    p.market_value != null ? fmt$(p.market_value) : "-",
+    p.unrealized_pnl != null ? {v: fmt$(p.unrealized_pnl), cls: p.unrealized_pnl >= 0 ? "up" : "down"} : "-",
+    p.unrealized_pct != null ? {v: pct(p.unrealized_pct), cls: p.unrealized_pct >= 0 ? "up" : "down"} : "-",
+    p.day_change_pct != null ? {v: pct(p.day_change_pct), cls: p.day_change_pct >= 0 ? "up" : "down"} : "-",
+  ]), "No open positions — the account is in cash.");
+
+table("pending",
+  [{t:"Placed"},{t:"Side"},{t:"Ticker"},{t:"Size",num:1},{t:"Reason",cls:"reason"}],
+  D.pending.map(o => [esc(o.created_ts), o.side.toUpperCase(), esc(o.ticker),
+    o.amount_cad ? fmt$(o.amount_cad) : o.shares + " sh", esc(o.reason || "")]),
+  "None.");
+
+table("trades",
+  [{t:"Time"},{t:"Side"},{t:"Ticker"},{t:"Shares",num:1},{t:"Price",num:1},{t:"Realized",num:1},{t:"Reason",cls:"reason"}],
+  D.trades.map(t => [esc(t.ts), t.side.toUpperCase(), esc(t.ticker), t.shares,
+    Number(t.price).toFixed(3),
+    t.realized_pnl != null ? {v: fmt$(t.realized_pnl), cls: t.realized_pnl >= 0 ? "up" : "down"} : "-",
+    esc(t.reason || "")]),
+  "No trades yet.");
+
+document.getElementById("dailies").innerHTML = (D.dailies && D.dailies.length)
+  ? D.dailies.map((d, i) =>
+      `<details ${i === 0 ? "open" : ""}><summary style="cursor:pointer;font-weight:600;padding:4px 0">${esc(d.date)}</summary>
+       <pre class="note">${esc(d.content)}</pre></details>`).join("")
+  : '<div class="empty">No daily summaries yet — generated by <code>python agent.py daily</code> after the close.</div>';
+
+document.getElementById("note").innerHTML = D.latest_note
+  ? `<div class="sub">${esc(D.latest_note.ts)}</div><pre class="note">${esc(D.latest_note.content)}</pre>`
+  : '<div class="empty">No notes yet.</div>';
+</script>
+</body></html>

@@ -1,0 +1,4 @@
+anthropic>=0.116.0
+claude-agent-sdk>=0.2.0
+yfinance>=0.2.61
+tzdata>=2025.1
