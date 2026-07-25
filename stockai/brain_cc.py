@@ -114,6 +114,7 @@ async def _run(broker: Broker, cfg: Config, opening: str, session_id: str) -> st
         setting_sources=[],
         max_turns=cfg.max_assistant_turns,
         model=getattr(cfg, "cc_model", "opus"),
+        effort=cfg.effort,
         cwd=str(PROJECT_ROOT),
     )
 

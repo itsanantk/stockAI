@@ -1,10 +1,13 @@
 # stockAI — self-running trading sessions + auto-updating dashboard.
 #
-# Fires every 30 minutes through the TSX session (cron is UTC; 13:00-20:30 UTC
-# covers 9:00-16:30 Toronto in summer/EDT and 8:00-15:30 in winter/EST).
-# --skip-if-closed silently drops firings outside real market hours/holidays.
-# --mode auto runs a FULL research session near the open (~10:00-10:50 ET) and
-# close (~15:10-16:00 ET), and a cheap monitoring CHECK-IN otherwise.
+# Sized for ~30% of a Claude Max 5x weekly budget:
+#   - one PRE-MARKET full research session (Opus) before the 9:30 ET open,
+#     which queues orders that fill at the opening auction
+#   - hourly Sonnet CHECK-INS while the market is open (act only on
+#     stops/targets/thesis-breaking news)
+# Cron is UTC (13:00 UTC = 9:00 ET in summer / 8:00 ET in winter — both are
+# valid pre-market times). --skip-if-closed drops holiday/closed firings;
+# --mode auto picks premarket/checkin by the TSX clock.
 #
 # Required repo secret (Settings -> Secrets -> Actions):
 #   CLAUDE_CODE_OAUTH_TOKEN  — from `claude setup-token` (uses your Claude
@@ -15,8 +18,10 @@ name: stockAI trading session
 
 on:
   schedule:
-    - cron: "0,30 13-20 * * 1-5"   # every 30 min across the trading day
-  workflow_dispatch: {}            # manual "Run workflow" button
+    - cron: "0 13 * * 1-5"      # pre-market full session (Opus)
+    - cron: "0 14-19 * * 1-5"   # hourly check-ins, 10:00-15:00 ET (EDT)
+    - cron: "30 19 * * 1-5"     # near-close check-in, 15:30 ET (EDT)
+  workflow_dispatch: {}         # manual "Run workflow" button
 
 concurrency:
   group: trading

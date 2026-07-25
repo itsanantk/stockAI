@@ -35,9 +35,12 @@ def main():
                        help="Optional extra instruction for the AI this session")
     p_run.add_argument("--skip-if-closed", action="store_true",
                        help="Exit without a session when the TSX is closed (for schedulers)")
-    p_run.add_argument("--mode", choices=["full", "checkin", "auto"], default="full",
+    p_run.add_argument("--mode", choices=["full", "checkin", "premarket", "auto"],
+                       default="full",
                        help="full = deep research session; checkin = quick monitoring pass "
-                            "on a cheaper model; auto = full near open/close, else checkin")
+                            "on a cheaper model; premarket = full session before the open "
+                            "that queues orders for the opening auction; auto = premarket "
+                            "before the bell, checkin while open, skip otherwise")
     sub.add_parser("daily")
     sub.add_parser("report")
     sub.add_parser("portfolio")
@@ -115,19 +118,33 @@ def main():
 
         from stockai.brain import run_session
 
-        if args.skip_if_closed and not market.market_status()["is_open"]:
-            print("Market closed and --skip-if-closed set; no session run.")
-            return
+        status = market.market_status()
+        now = dt.datetime.now(ZoneInfo("America/Toronto"))
+        is_premarket_window = (status["detail"] == "pre-market"
+                               and now.time() >= dt.time(7, 30))
 
         mode = args.mode
         if mode == "auto":
-            now = dt.datetime.now(ZoneInfo("America/Toronto"))
-            in_open_window = dt.time(10, 0) <= now.time() <= dt.time(10, 50)
-            in_close_window = dt.time(15, 10) <= now.time() <= dt.time(15, 59)
-            mode = "full" if (in_open_window or in_close_window) else "checkin"
+            if status["is_open"]:
+                mode = "checkin"
+            elif is_premarket_window:
+                mode = "premarket"
+
+        if args.skip_if_closed and not status["is_open"] and mode != "premarket":
+            print("Market closed and --skip-if-closed set; no session run.")
+            return
 
         extra = args.message
-        if mode == "checkin":
+        if mode == "premarket":
+            premarket_note = (
+                "PRE-MARKET SESSION: the TSX opens at 9:30 ET. Do your full research "
+                "now — overnight and weekend news, your holdings, the movers and "
+                "catalysts — and queue any buy/sell orders in this session. Queued "
+                "orders fill at today's opening auction price, so place them as if "
+                "buying/selling at the open."
+            )
+            extra = f"{premarket_note}\n\n{extra}" if extra else premarket_note
+        elif mode == "checkin":
             cfg.cc_model = cfg.checkin_model
             cfg.effort = "medium"
             cfg.max_web_searches = cfg.checkin_max_searches
