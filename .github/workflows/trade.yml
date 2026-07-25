@@ -1,8 +1,10 @@
 # stockAI — self-running trading sessions + auto-updating dashboard.
 #
-# Schedule is UTC. 14:35/19:45 UTC = 10:35/15:45 Toronto during EDT (summer).
-# In winter (EST) these fire at 09:35/14:45 ET — still inside market hours.
-# --skip-if-closed makes holiday firings a no-op.
+# Fires every 30 minutes through the TSX session (cron is UTC; 13:00-20:30 UTC
+# covers 9:00-16:30 Toronto in summer/EDT and 8:00-15:30 in winter/EST).
+# --skip-if-closed silently drops firings outside real market hours/holidays.
+# --mode auto runs a FULL research session near the open (~10:00-10:50 ET) and
+# close (~15:10-16:00 ET), and a cheap monitoring CHECK-IN otherwise.
 #
 # Required repo secret (Settings -> Secrets -> Actions):
 #   CLAUDE_CODE_OAUTH_TOKEN  — from `claude setup-token` (uses your Claude
@@ -13,9 +15,8 @@ name: stockAI trading session
 
 on:
   schedule:
-    - cron: "35 14 * * 1-5"   # morning session
-    - cron: "45 19 * * 1-5"   # afternoon session + daily summary
-  workflow_dispatch: {}       # manual "Run workflow" button
+    - cron: "0,30 13-20 * * 1-5"   # every 30 min across the trading day
+  workflow_dispatch: {}            # manual "Run workflow" button
 
 concurrency:
   group: trading
@@ -52,7 +53,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PYTHONUNBUFFERED: "1"
-        run: python agent.py run --skip-if-closed
+        run: python agent.py run --skip-if-closed --mode auto
 
       - name: Daily summary
         env:

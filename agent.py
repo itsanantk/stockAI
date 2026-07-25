@@ -35,6 +35,9 @@ def main():
                        help="Optional extra instruction for the AI this session")
     p_run.add_argument("--skip-if-closed", action="store_true",
                        help="Exit without a session when the TSX is closed (for schedulers)")
+    p_run.add_argument("--mode", choices=["full", "checkin", "auto"], default="full",
+                       help="full = deep research session; checkin = quick monitoring pass "
+                            "on a cheaper model; auto = full near open/close, else checkin")
     sub.add_parser("daily")
     sub.add_parser("report")
     sub.add_parser("portfolio")
@@ -107,11 +110,38 @@ def main():
         return
 
     if args.command == "run":
+        import datetime as dt
+        from zoneinfo import ZoneInfo
+
         from stockai.brain import run_session
 
         if args.skip_if_closed and not market.market_status()["is_open"]:
             print("Market closed and --skip-if-closed set; no session run.")
             return
+
+        mode = args.mode
+        if mode == "auto":
+            now = dt.datetime.now(ZoneInfo("America/Toronto"))
+            in_open_window = dt.time(10, 0) <= now.time() <= dt.time(10, 50)
+            in_close_window = dt.time(15, 10) <= now.time() <= dt.time(15, 59)
+            mode = "full" if (in_open_window or in_close_window) else "checkin"
+
+        extra = args.message
+        if mode == "checkin":
+            cfg.cc_model = cfg.checkin_model
+            cfg.effort = "medium"
+            cfg.max_web_searches = cfg.checkin_max_searches
+            checkin_note = (
+                "MONITORING CHECK-IN, not a full session. Review the portfolio and "
+                "check news on your current holdings and watchlist only. Act only if a "
+                "position hit its stop or target, a thesis-breaking headline appeared, "
+                "or a clearly material new catalyst emerged on a watchlist name. "
+                "Otherwise change nothing. No full market scans, no new research "
+                "threads, no note updates unless something changed. Keep the summary "
+                "to a few lines."
+            )
+            extra = f"{checkin_note}\n\n{extra}" if extra else checkin_note
+        print(f"[run] mode={mode}")
 
         filled = broker.fill_pending_orders()
         for f in filled:
@@ -120,7 +150,7 @@ def main():
                   + (f" @ {r.get('price')}" if r["status"] == "filled" else f" ({r.get('reason', '')})"))
         broker.snapshot()
 
-        summary = run_session(broker, cfg, extra_instruction=args.message)
+        summary = run_session(broker, cfg, extra_instruction=extra)
 
         broker.snapshot()
         print("\n" + "=" * 62)

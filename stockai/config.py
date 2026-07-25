@@ -32,6 +32,8 @@ class Config:
     model: str = "claude-opus-5"              # model for the API backend
     cc_model: str = "opus"                    # model for the claude-code backend
     effort: str = "high"                      # low | medium | high | xhigh | max
+    checkin_model: str = "sonnet"             # cheaper model for 30-min check-ins
+    checkin_max_searches: int = 6
     max_tokens: int = 16000
     max_web_searches: int = 15
     max_assistant_turns: int = 60             # safety cap per session
