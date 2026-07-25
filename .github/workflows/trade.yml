@@ -18,7 +18,9 @@ name: stockAI trading session
 
 on:
   schedule:
-    - cron: "0 13 * * 1-5"      # pre-market full session (Opus)
+    - cron: "45 12 * * 1-5"     # pre-market full session (Opus), ~8:45 ET —
+                                # off-peak minute so GitHub's cron delay can't
+                                # push it past the 9:30 open
     - cron: "0 14-19 * * 1-5"   # hourly check-ins, 10:00-15:00 ET (EDT)
     - cron: "30 19 * * 1-5"     # near-close check-in, 15:30 ET (EDT)
   workflow_dispatch: {}         # manual "Run workflow" button
