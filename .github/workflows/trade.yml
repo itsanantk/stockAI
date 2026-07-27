@@ -9,6 +9,10 @@
 # valid pre-market times). --skip-if-closed drops holiday/closed firings;
 # --mode auto picks premarket/checkin by the TSX clock.
 #
+# NOTE: GitHub only registers cron schedules from the default branch, and new
+# repos are notorious for silently not firing until the workflow file is
+# touched again — this comment exists to force that re-registration.
+#
 # Required repo secret (Settings -> Secrets -> Actions):
 #   CLAUDE_CODE_OAUTH_TOKEN  — from `claude setup-token` (uses your Claude
 #                              subscription; no API credits needed)
