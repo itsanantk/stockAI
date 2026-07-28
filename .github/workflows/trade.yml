@@ -5,13 +5,16 @@
 #     which queues orders that fill at the opening auction
 #   - hourly Sonnet CHECK-INS while the market is open (act only on
 #     stops/targets/thesis-breaking news)
-# Cron is UTC (13:00 UTC = 9:00 ET in summer / 8:00 ET in winter — both are
-# valid pre-market times). --skip-if-closed drops holiday/closed firings;
-# --mode auto picks premarket/checkin by the TSX clock.
-#
-# NOTE: GitHub only registers cron schedules from the default branch, and new
-# repos are notorious for silently not firing until the workflow file is
-# touched again — this comment exists to force that re-registration.
+# Cron is UTC and GitHub's scheduler is BEST-EFFORT: firings routinely run
+# 5-45 min late and are sometimes skipped outright (it skipped the entire
+# 2026-07-28 morning). Defenses, so no trading day loses its deep session:
+#   - all crons use off-peak minutes (top-of-hour is the most-dropped slot)
+#   - a second pre-market cron backs up the first; agent.py dedups so only
+#     one deep session runs per day
+#   - if BOTH pre-market firings are dropped, the first check-in while the
+#     market is open promotes itself to the full session (see resolve_mode)
+# --skip-if-closed drops holiday/closed firings; --mode auto picks
+# premarket/checkin by the TSX clock (America/Toronto).
 #
 # Required repo secret (Settings -> Secrets -> Actions):
 #   CLAUDE_CODE_OAUTH_TOKEN  — from `claude setup-token` (uses your Claude
@@ -22,11 +25,11 @@ name: stockAI trading session
 
 on:
   schedule:
-    - cron: "45 12 * * 1-5"     # pre-market full session (Opus), ~8:45 ET —
-                                # off-peak minute so GitHub's cron delay can't
-                                # push it past the 9:30 open
-    - cron: "0 14-19 * * 1-5"   # hourly check-ins, 10:00-15:00 ET (EDT)
-    - cron: "30 19 * * 1-5"     # near-close check-in, 15:30 ET (EDT)
+    - cron: "45 12 * * 1-5"     # pre-market full session (Opus), ~8:45 ET
+    - cron: "18 13 * * 1-5"     # backup pre-market firing ~9:18 ET — no-op
+                                # if the 8:45 one ran
+    - cron: "12 14-19 * * 1-5"  # hourly check-ins ~10:12-15:12 ET (EDT)
+    - cron: "41 19 * * 1-5"     # near-close check-in ~15:41 ET (EDT)
   workflow_dispatch: {}         # manual "Run workflow" button
 
 concurrency:

@@ -199,6 +199,15 @@ class Broker:
         )
         self.db.commit()
 
+    def had_deep_session(self, date_str: str) -> bool:
+        """True if a full/premarket session already ran on date_str (Toronto date)."""
+        row = self.db.execute(
+            "SELECT 1 FROM journal WHERE kind='mode' AND content IN ('full', 'premarket') "
+            "AND ts LIKE ? LIMIT 1",
+            (f"{date_str}%",),
+        ).fetchone()
+        return row is not None
+
     # ---------- fills ----------
 
     def _commission(self, shares: int, price: float) -> float:

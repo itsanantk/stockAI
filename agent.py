@@ -25,6 +25,28 @@ from stockai import market, report
 from stockai.config import load_config
 
 
+def resolve_mode(mode, status, now, deep_done):
+    """Resolve --mode auto against the market clock, self-healing around
+    GitHub's best-effort cron (firings are often late, sometimes skipped).
+
+    Returns (mode, skip_reason). With redundant pre-market crons scheduled,
+    exactly one deep session runs per day: a duplicate pre-market firing is
+    skipped, and if every pre-market firing was dropped, the first run while
+    the market is open promotes itself from check-in to the full session.
+    """
+    import datetime as dt
+    is_premarket_window = (status["detail"] == "pre-market"
+                           and now.time() >= dt.time(7, 30))
+    if mode == "auto":
+        if status["is_open"]:
+            mode = "checkin" if deep_done else "full"
+        elif is_premarket_window:
+            if deep_done:
+                return mode, "pre-market session already ran today; duplicate firing skipped"
+            mode = "premarket"
+    return mode, None
+
+
 def main():
     parser = argparse.ArgumentParser(description="stockAI — AI trading agent for the Canadian market")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -120,15 +142,15 @@ def main():
 
         status = market.market_status()
         now = dt.datetime.now(ZoneInfo("America/Toronto"))
-        is_premarket_window = (status["detail"] == "pre-market"
-                               and now.time() >= dt.time(7, 30))
+        deep_done = broker.had_deep_session(now.strftime("%Y-%m-%d"))
 
-        mode = args.mode
-        if mode == "auto":
-            if status["is_open"]:
-                mode = "checkin"
-            elif is_premarket_window:
-                mode = "premarket"
+        mode, skip_reason = resolve_mode(args.mode, status, now, deep_done)
+        if skip_reason:
+            print(f"[run] {skip_reason}")
+            return
+        if args.mode == "auto" and mode == "full":
+            print("[run] pre-market session was missed today — promoting this "
+                  "run to the daily full session")
 
         if args.skip_if_closed and not status["is_open"] and mode != "premarket":
             print("Market closed and --skip-if-closed set; no session run.")
@@ -159,6 +181,7 @@ def main():
             )
             extra = f"{checkin_note}\n\n{extra}" if extra else checkin_note
         print(f"[run] mode={mode}")
+        broker.log(f"cli-{now.strftime('%Y%m%d%H%M%S')}", "mode", mode)
 
         filled = broker.fill_pending_orders()
         for f in filled:
