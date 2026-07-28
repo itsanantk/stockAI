@@ -2,70 +2,139 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Autonomous AI portfolio manager trading TSX/TSXV stocks in a realistic paper simulation.">
 <title>stockAI — Canadian AI portfolio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E">
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
-  .viz-root, :root {
+  :root, :root[data-theme="light"] {
     color-scheme: light;
-    --page:      #f9f9f7; --surface-1: #fcfcfb;
-    --ink-1:     #0b0b0b; --ink-2:     #52514e; --ink-muted: #898781;
-    --grid:      #e1e0d9; --baseline:  #c3c2b7;
-    --border:    rgba(11,11,11,0.10);
+    --page:      #f6f6f3; --surface-1: #fdfdfc;
+    --ink-1:     #0b0b0b; --ink-2:     #52514e; --ink-muted: #8a887f;
+    --grid:      #e4e3dc; --baseline:  #c3c2b7;
+    --border:    rgba(11,11,11,0.09);
+    --shadow:    0 1px 2px rgba(11,11,11,0.04), 0 4px 16px rgba(11,11,11,0.03);
     --series-1:  #2a78d6; --series-2:  #eb6834; --series-3:  #1baf7a;
-    --good:      #006300; --bad:       #d03b3b;
+    --good:      #0a6e0a; --bad:       #cf3b3b; --warn: #a86a00;
+    --good-bg:   rgba(10,110,10,0.08); --bad-bg: rgba(207,59,59,0.08);
+    --hover:     rgba(11,11,11,0.03);
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:      #0c0c0c; --surface-1: #171716;
+    --ink-1:     #f4f4f2; --ink-2:     #c3c2b7; --ink-muted: #8a887f;
+    --grid:      #292927; --baseline:  #3a3a37;
+    --border:    rgba(255,255,255,0.09);
+    --shadow:    0 1px 2px rgba(0,0,0,0.3);
+    --series-1:  #4d94e8; --series-2:  #e8703f; --series-3:  #23b981;
+    --good:      #3fbf3f; --bad:       #e05c5c; --warn: #d99a2b;
+    --good-bg:   rgba(63,191,63,0.13); --bad-bg: rgba(224,92,92,0.13);
+    --hover:     rgba(255,255,255,0.04);
   }
   @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"])) {
+    :root:not([data-theme="light"]) {
       color-scheme: dark;
-      --page:      #0d0d0d; --surface-1: #1a1a19;
-      --ink-1:     #ffffff; --ink-2:     #c3c2b7; --ink-muted: #898781;
-      --grid:      #2c2c2a; --baseline:  #383835;
-      --border:    rgba(255,255,255,0.10);
-      --series-1:  #3987e5; --series-2:  #d95926; --series-3:  #199e70;
-      --good:      #0ca30c; --bad:       #d03b3b;
+      --page:      #0c0c0c; --surface-1: #171716;
+      --ink-1:     #f4f4f2; --ink-2:     #c3c2b7; --ink-muted: #8a887f;
+      --grid:      #292927; --baseline:  #3a3a37;
+      --border:    rgba(255,255,255,0.09);
+      --shadow:    0 1px 2px rgba(0,0,0,0.3);
+      --series-1:  #4d94e8; --series-2:  #e8703f; --series-3:  #23b981;
+      --good:      #3fbf3f; --bad:       #e05c5c; --warn: #d99a2b;
+      --good-bg:   rgba(63,191,63,0.13); --bad-bg: rgba(224,92,92,0.13);
+      --hover:     rgba(255,255,255,0.04);
     }
   }
   * { box-sizing: border-box; margin: 0; }
   body {
     background: var(--page); color: var(--ink-1);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    padding: 24px; max-width: 1060px; margin: 0 auto;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 28px 24px 12px; max-width: 1080px; margin: 0 auto;
+    -webkit-text-size-adjust: 100%;
   }
-  h1 { font-size: 20px; font-weight: 650; }
-  h2 { font-size: 13px; font-weight: 600; color: var(--ink-2);
-       text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
-  .sub { color: var(--ink-muted); font-size: 12.5px; margin-top: 4px; }
+  header { display: flex; align-items: flex-start; justify-content: space-between;
+           gap: 14px; flex-wrap: wrap; }
+  .brand { font-size: 23px; font-weight: 750; letter-spacing: -0.02em; }
+  .brand .ai { color: var(--series-1); }
+  .sub { color: var(--ink-muted); font-size: 12.5px; margin-top: 5px; }
+  .hdr-right { display: flex; align-items: center; gap: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 7px;
+          background: var(--surface-1); border: 1px solid var(--border);
+          border-radius: 999px; padding: 6px 13px; font-size: 12.5px;
+          color: var(--ink-2); white-space: nowrap; }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  #themebtn { background: var(--surface-1); border: 1px solid var(--border);
+              border-radius: 999px; padding: 6px 13px; font-size: 12.5px;
+              color: var(--ink-2); cursor: pointer; font-family: inherit; }
+  #themebtn:hover { color: var(--ink-1); }
+  h2 { font-size: 11.5px; font-weight: 650; color: var(--ink-muted);
+       text-transform: uppercase; letter-spacing: .07em;
+       display: flex; align-items: center; gap: 8px; margin: 0 0 12px; }
+  h2::before { content: ""; width: 6px; height: 6px; border-radius: 2px;
+               background: var(--series-1); flex: none; }
   .card { background: var(--surface-1); border: 1px solid var(--border);
-          border-radius: 10px; padding: 16px 18px; margin-top: 16px; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr));
-           gap: 12px; margin-top: 16px; }
+          border-radius: 14px; padding: 18px 20px; margin-top: 16px;
+          box-shadow: var(--shadow); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+           gap: 12px; margin-top: 20px; }
   .tile { background: var(--surface-1); border: 1px solid var(--border);
-          border-radius: 10px; padding: 14px 16px; }
-  .tile .label { font-size: 12px; color: var(--ink-2); }
-  .tile .value { font-size: 26px; font-weight: 650; margin-top: 4px; }
-  .tile .delta { font-size: 12.5px; margin-top: 2px; }
+          border-radius: 14px; padding: 15px 17px 13px; box-shadow: var(--shadow); }
+  .tile .label { font-size: 11px; font-weight: 600; color: var(--ink-muted);
+                 text-transform: uppercase; letter-spacing: .06em; }
+  .tile .value { font-size: 27px; font-weight: 700; letter-spacing: -0.01em;
+                 margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .tile .delta { font-size: 12.5px; margin-top: 3px; color: var(--ink-2); }
   .up   { color: var(--good); }
   .down { color: var(--bad); }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: var(--ink-muted); font-weight: 500;
-       border-bottom: 1px solid var(--baseline); padding: 5px 8px; }
-  td { padding: 6px 8px; border-bottom: 1px solid var(--grid);
-       font-variant-numeric: tabular-nums; }
-  td.reason { color: var(--ink-2); font-size: 12.5px; max-width: 420px; }
-  .num { text-align: right; }
+  .chart-head { display: flex; align-items: baseline; justify-content: space-between;
+                gap: 10px; flex-wrap: wrap; }
   .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--ink-2);
-            margin-bottom: 8px; flex-wrap: wrap; }
+            margin-bottom: 10px; flex-wrap: wrap; }
   .legend .swatch { display: inline-block; width: 10px; height: 10px;
                     border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
   #chartwrap { position: relative; overflow-x: auto; }
+  #chart { width: 100%; height: auto; min-width: 640px; display: block; }
   #tooltip { position: absolute; pointer-events: none; display: none;
              background: var(--surface-1); border: 1px solid var(--border);
-             border-radius: 8px; padding: 8px 10px; font-size: 12px;
-             box-shadow: 0 4px 14px rgba(0,0,0,.12); white-space: nowrap; z-index: 5; }
+             border-radius: 10px; padding: 8px 11px; font-size: 12px;
+             box-shadow: 0 6px 20px rgba(0,0,0,.15); white-space: nowrap; z-index: 5; }
   #tooltip .t { color: var(--ink-muted); margin-bottom: 3px; }
+  .tablewrap { overflow-x: auto; margin: 0 -4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--ink-muted); font-weight: 600; font-size: 11px;
+       text-transform: uppercase; letter-spacing: .05em;
+       border-bottom: 1px solid var(--baseline); padding: 7px 9px; white-space: nowrap; }
+  td { padding: 9px; border-bottom: 1px solid var(--grid);
+       font-variant-numeric: tabular-nums; vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--hover); }
+  td.tick { font-weight: 650; }
+  td.reason { color: var(--ink-2); font-size: 12.5px; min-width: 260px; max-width: 460px; }
+  .num { text-align: right; }
+  .nw { white-space: nowrap; }
+  .side { display: inline-block; font-size: 10.5px; font-weight: 750;
+          letter-spacing: .05em; padding: 2.5px 9px; border-radius: 999px; }
+  .side.b { color: var(--good); background: var(--good-bg); }
+  .side.s { color: var(--bad); background: var(--bad-bg); }
+  .reason .md.clamp { display: -webkit-box; -webkit-line-clamp: 3;
+                      -webkit-box-orient: vertical; overflow: hidden; }
+  .morebtn { background: none; border: none; padding: 2px 0 0; cursor: pointer;
+             color: var(--series-1); font-size: 12px; font-family: inherit; }
+  .morebtn:hover { text-decoration: underline; }
+  details.day { border: 1px solid var(--border); border-radius: 10px;
+                padding: 0 14px; margin: 8px 0; }
+  details.day summary { cursor: pointer; font-weight: 650; font-size: 13.5px;
+                        padding: 11px 0; list-style: none; user-select: none; }
+  details.day summary::-webkit-details-marker { display: none; }
+  details.day summary::before { content: "\25B8"; display: inline-block; margin-right: 9px;
+                                color: var(--ink-muted); transition: transform .15s; }
+  details.day[open] summary::before { transform: rotate(90deg); }
+  details.day[open] { padding-bottom: 10px; }
   pre.note { white-space: pre-wrap; font-family: inherit; font-size: 13px;
              color: var(--ink-2); line-height: 1.5; }
   .empty { color: var(--ink-muted); font-size: 13px; }
-  .md { font-size: 13px; color: var(--ink-2); line-height: 1.55; }
+  .md { font-size: 13px; color: var(--ink-2); line-height: 1.55;
+        overflow-wrap: break-word; }
   .md p { margin: 2px 0; }
   .md .md-h1 { font-size: 15px; font-weight: 650; color: var(--ink-1); margin: 10px 0 4px; }
   .md .md-h2 { font-size: 13.5px; font-weight: 650; color: var(--ink-1); margin: 10px 0 4px; }
@@ -80,17 +149,38 @@
   .md code { background: var(--grid); border-radius: 4px; padding: 0 4px; }
   .md hr { border: 0; border-top: 1px solid var(--grid); margin: 8px 0; }
   td.reason .md { font-size: 12.5px; }
+  footer { text-align: center; color: var(--ink-muted); font-size: 12px;
+           margin: 30px 0 14px; }
+  footer a { color: var(--ink-2); }
+  @media (max-width: 640px) {
+    body { padding: 16px 12px 8px; }
+    .card { padding: 14px; border-radius: 12px; }
+    .tile .value { font-size: 22px; }
+    .brand { font-size: 20px; }
+  }
 </style></head>
 <body>
-<h1>stockAI — Canadian AI portfolio</h1>
-<div class="sub" id="subline"></div>
+<header>
+  <div>
+    <div class="brand">stock<span class="ai">AI</span></div>
+    <div class="sub" id="subline"></div>
+  </div>
+  <div class="hdr-right">
+    <span class="pill" id="mktpill"></span>
+    <button id="themebtn" title="Toggle theme"></button>
+  </div>
+</header>
 
 <div class="tiles" id="tiles"></div>
 
 <div class="card">
-  <h2>Performance, indexed to 100 at inception</h2>
-  <div class="legend" id="legend"></div>
-  <div id="chartwrap"><div id="tooltip"></div><svg id="chart" width="1000" height="300"></svg></div>
+  <div class="chart-head">
+    <h2>Performance, indexed to 100 at inception</h2>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div id="chartwrap"><div id="tooltip"></div>
+    <svg id="chart" viewBox="0 0 1000 320" height="320"></svg>
+  </div>
 </div>
 
 <div class="card"><h2>Open positions</h2><div id="positions"></div></div>
@@ -99,11 +189,33 @@
 <div class="card"><h2>Trade log (AI reasoning included)</h2><div id="trades"></div></div>
 <div class="card"><h2>Latest AI note (its memory)</h2><div id="note"></div></div>
 
+<footer>AI paper-trading experiment · not financial advice · quotes ~15 min delayed ·
+<a href="https://github.com/itsanantk/stockAI" target="_blank" rel="noopener">GitHub</a></footer>
+
 <script>
-const D = {"dailies": [{"date": "2026-07-28", "ts": "2026-07-28 13:19:14", "content": "# Daily summary \u2014 2026-07-28\n\nEquity $4,931.51  |  day P&L -20.93 (-0.42%)  |  ZSP.TO today +0.34%\nSince inception: -1.37% vs S&P 500 +0.38% (alpha -1.75%)  |  cash $3,236.29\n\n## Trades today\n- none\n\n## Open positions\n- DPM.TO: 15 sh @ 52.93, last 50.17, P&L -41.33 (-5.20%)\n- TOU.TO: 15 sh @ 63.85, last 62.84, P&L -15.15 (-1.58%)\n\n## AI session recap\nNo thesis breaks, no stop/target hits. DPM $50.18 (stop $46.50, target $60) \u2014 no fresh negative news, gold thesis intact. TOU $62.84 (stop $60, target $72) \u2014 reports Jul 29 after close as planned, no news warranting pre-emptive action; de-escalation talks continuing (Brent ~$87, still holding the pause) which is consistent with prior session's read, nothing new to act on. Holding both unchanged, no trades this check-in."}, {"date": "2026-07-27", "ts": "2026-07-27 16:49:15", "content": "# Daily summary \u2014 2026-07-27\n\nEquity $4,955.59  |  day P&L -44.41 (-0.89%)  |  ZSP.TO today +0.03%\nSince inception: -0.89% vs S&P 500 +0.17% (alpha -1.06%)  |  cash $3,236.29\n\n## Trades today (6)\n- BUY 5 IMO.TO @ 176.880\n  - [queued 2026-07-24 22:56:22] CATALYST: Brent topped $100 (Jul 23) with Hormuz effectively closed and Houthis now threatening the Red Sea as a second chokepoint; US on day 13 of strikes on Iran. IMO is an integrated with large refining exposure \u2014 crack spreads blow out when crude spikes, so it captur\n- BUY 15 TOU.TO @ 63.850\n  - [queued 2026-07-24 22:56:29] CATALYST: the non-oil leg of the energy trade. Qatar supplies ~20% of global LNG and it transits Hormuz \u2014 with the strait effectively closed, international LNG pricing is spiking. Tourmaline is Canada's largest gas producer with direct international LNG-linked contracts,\n- BUY 15 DPM.TO @ 52.930\n  - [queued 2026-07-24 22:56:38] DELIBERATE HEDGE + own catalyst. Gold is currently SUPPRESSED by the war, not helped by it: the oil spike is driving inflation expectations, which has the Fed pricing a hike and keeps the USD bid against non-yielding gold. So gold's re-rating trigger is DE-ESCALATION \u2014 p\n- BUY 7 SU.TO @ 90.500\n  - [queued 2026-07-24 22:56:43] Second integrated with major downstream/retail \u2014 same crack-spread capture as IMO at $100 Brent. Kept SMALLEST of the energy legs (14%) for two honest reasons: it is the most extended name in the group (+19.7% in a month, vs IMO +13%), and it is genuinely correlated with\n- SELL 7 SU.TO @ 89.920  [realized -5.06]\n  - Thesis-break: US paused Iran strikes 2nd straight night, talks turning positive, Brent -8.2% / WTI -7.6% today on de-escalation. Master thesis-break rule: sell pure upstream oil beta FIRST on credible de-escalation, regardless of price.\n- SELL 5 IMO.TO @ 176.490  [realized -2.95]\n  - Thesis-break: same de-escalation headline (US-Iran strike pause, oil crashing 8%). Refining-crack cushion doesn't offset a crude collapse of this size; exiting same day per plan, ahead of Jul 31 earnings which is now a bigger risk than opportunity.\n\n## Open positions\n- DPM.TO: 15 sh @ 52.93, last 51.05, P&L -28.20 (-3.55%)\n- TOU.TO: 15 sh @ 63.85, last 63.57, P&L -4.20 (-0.44%)\n\n## AI session recap\nChecked both positions \u2014 no action needed, thesis intact on both:\n\n- **DPM.TO** (-3.24% today, last $50.75): Gold is actually *up* slightly today ($4,083, +0.7%) on the same Iran de-escalation news that's driving the stock's own moves \u2014 so DPM's dip looks like broad equity/risk-off noise or profit-taking after last week's breakout, not a thesis break. No fresh negative news; Q1 was strong (revenue +115% YoY). Stop $46.50, target $60 \u2014 well clear of the stop, holding.\n- **TOU.TO** (-2.27% today, last $63.65): No negative catalyst \u2014 TD raised target to $66, Desjardins to $68, insider buying in early July, Scotiabank strong-buy. Reports earnings Jul 29 as planned. Stop $60, target $72 \u2014 holding through the print.\n- Iran/Hormuz situation: still a fragile, back-and-forth de-escalation (talks ongoing, no full resolution), consistent with last session's read \u2014 nothing new that changes positioning.\n\nNo trades this check-in; nothing hit a stop, target, or thesis-break trigger."}, {"date": "2026-07-25", "ts": "2026-07-25 14:53:34", "content": "# Daily summary \u2014 2026-07-25\n\nEquity $5,000.00  |  day P&L +0.00 (+0.00%)\nSince inception: +0.00% vs S&P 500 +0.00% (alpha +0.00%)  |  cash $5,000.00\n\n## Trades today\n- none\n\n## Open positions\n- none (all cash)\n\n## Pending market-on-open orders\n- BUY IMO.TO $980\n- BUY TOU.TO $980\n- BUY DPM.TO $800\n- BUY SU.TO $700\n"}, {"date": "2026-07-24", "ts": "2026-07-24 22:58:47", "content": "# Daily summary \u2014 2026-07-24\n\nEquity $5,000.00  |  day P&L +0.00 (+0.00%)\nSince inception: +0.00% vs S&P 500 +0.00% (alpha +0.00%)  |  cash $5,000.00\n\n## Trades today\n- none\n\n## Open positions\n- none (all cash)\n\n## Pending market-on-open orders\n- BUY IMO.TO $980\n- BUY TOU.TO $980\n- BUY DPM.TO $800\n- BUY SU.TO $700\n\n## AI session recap\n**Done \u2014 four orders queued for Monday's open, $3,460 deployed (69%), $1,540 cash.**\n\n**Thesis re-verified and it got stronger, not weaker.** Brent topped $100 on Jul 23, the Houthis opened a *second* chokepoint in the Red Sea while Hormuz is still shut, and the US is on day 13 of strikes. Friday's -3% oil day was profit-taking inside a week that was still +10%.\n\n**What I bought:**\n\n- **IMO $980 (20%)** \u2014 Refining cracks blow out at $100 Brent, so it captures the move without pure crude beta. Q2 print Jul 31 is a live catalyst into an exceptional quarter.\n- **TOU $980 (20%)** \u2014 The non-oil leg. Qatar is ~20% of global LNG and it *also* transits Hormuz, so international LNG pricing is spiking; TOU has direct LNG-linked contracts plus LNG Canada ramping to nameplate.\n- **DPM $800 (16%)** \u2014 A deliberate hedge, and the most useful thing I found. Gold is being *suppressed* by this war: the oil-inflation spike keeps the Fed hawkish and the USD bid. Gold's trigger is de-escalation \u2014 exactly what breaks my three energy legs. It also broke out Friday to a 3-month high on 3x volume with its own drivers (Vare\u0161 ramp, \u010coka Rakita).\n- **SU $700 (14%)** \u2014 Smallest on purpose. It's the redundant leg: correlated with IMO, most extended at +19.7%/mo, weaker tell.\n\n**The sizing came from one test.** On Friday's -3% oil day: TOU +0.41% > IMO -0.10% > SU -0.67% > CNQ -1.09%. That ranking set both position sizes and my exit order. **I dropped CNQ entirely** \u2014 pure upstream had the weakest tell, and adding a fourth crude name would have collapsed the book into a single bet.\n\n**Two things I'm watching.** The master thesis-break is unchanged: any credible de-escalation headline and I sell SU first, then IMO, same day \u2014 but I *hold* DPM into it, since it's the beneficiary. And IMO (Jul 31) and TOU (Aug 5) both report inside my window; I'm holding through, but they're defined binary risks, not free catalysts.\n\nOne judgment call worth flagging: I'm buying energy after a +10% week, near the highs. IMO's refusal to drop on a -3% oil day is what justified it \u2014 but if that relative strength breaks on the next down-oil day, the entry premise is gone regardless of where the stops sit.\n\nSources: [CNN](https://www.cnn.com/2026/07/23/world/live-news/iran-war-trump) \u00b7 [Invezz \u2014 oil](https://invezz.com/news/2026/07/24/oil-prices-fall-3-but-remain-on-track-for-biggest-weekly-gains-in-months/) \u00b7 [Invezz \u2014 gold](https://invezz.com/news/2026/07/24/gold-falls-despite-war-risks-has-100-oil-rewritten-the-safe-haven-trade/) \u00b7 [Imperial Oil IR](https://news.imperialoil.ca/news-releases/news-releases/2026/Imperial-to-hold-2026-Second-Quarter-Earnings-Call/default.aspx) \u00b7 [RBN Energy \u2014 Tourmaline](https://rbnenergy.com/daily-posts/analyst-insight/q1-2026-earnings-calls-tourmaline-says-western-canadas-gas-glut-looks)"}], "generated": "2026-07-28 17:19", "market": {"now_toronto": "2026-07-28 13:19 EDT", "is_open": true, "session": "open", "detail": "regular session"}, "perf": {"starting_cash": 5000.0, "equity": 4931.51, "cash": 3236.29, "return_pct": -1.37, "benchmarks": {"ZSP.TO": {"inception": 114.41999816894531, "now": 114.85, "return_pct": 0.38}, "^GSPTSE": {"inception": 35369.1015625, "now": 35714.35, "return_pct": 0.98}}, "alpha_vs_sp500_pct": -1.75}, "series": [{"ts": "2026-07-24 22:09:40", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}, {"ts": "2026-07-24 22:54:01", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}, {"ts": "2026-07-24 22:57:20", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}, {"ts": "2026-07-27 11:28:25", "portfolio": 99.476, "sp500": 99.991, "tsx": 100.008}, {"ts": "2026-07-27 11:28:53", "portfolio": 99.46, "sp500": 99.991, "tsx": 99.995}, {"ts": "2026-07-27 11:31:43", "portfolio": 99.372, "sp500": 100.026, "tsx": 100.05}, {"ts": "2026-07-27 11:33:08", "portfolio": 99.319, "sp500": 100.026, "tsx": 100.028}, {"ts": "2026-07-27 12:05:51", "portfolio": 99.247, "sp500": 100.026, "tsx": 99.913}, {"ts": "2026-07-27 12:06:24", "portfolio": 99.247, "sp500": 100.026, "tsx": 99.906}, {"ts": "2026-07-27 14:17:12", "portfolio": 99.046, "sp500": 100.035, "tsx": 100.195}, {"ts": "2026-07-27 14:17:40", "portfolio": 99.049, "sp500": 100.035, "tsx": 100.199}, {"ts": "2026-07-28 11:06:44", "portfolio": 98.662, "sp500": 100.009, "tsx": 100.499}, {"ts": "2026-07-28 11:07:10", "portfolio": 98.662, "sp500": 100.009, "tsx": 100.49}, {"ts": "2026-07-28 11:56:55", "portfolio": 98.68, "sp500": 100.402, "tsx": 100.99}, {"ts": "2026-07-28 11:57:19", "portfolio": 98.689, "sp500": 100.411, "tsx": 101.001}, {"ts": "2026-07-28 13:18:50", "portfolio": 98.63, "sp500": 100.376, "tsx": 100.976}, {"ts": "2026-07-28 13:19:11", "portfolio": 98.63, "sp500": 100.376, "tsx": 100.976}], "positions": [{"ticker": "DPM.TO", "shares": 15, "avg_cost": 52.93, "last": 50.175, "market_value": 752.62, "unrealized_pnl": -41.33, "unrealized_pct": -5.2, "day_change_pct": -1.62}, {"ticker": "TOU.TO", "shares": 15, "avg_cost": 63.85, "last": 62.84, "market_value": 942.6, "unrealized_pnl": -15.15, "unrealized_pct": -1.58, "day_change_pct": -1.09}], "pending": [], "trades": [{"id": 6, "ts": "2026-07-27 11:32:37", "ticker": "IMO.TO", "side": "sell", "shares": 5, "price": 176.49, "commission": 1.0, "notional": 882.45, "realized_pnl": -2.95, "reason": "Thesis-break: same de-escalation headline (US-Iran strike pause, oil crashing 8%). Refining-crack cushion doesn't offset a crude collapse of this size; exiting same day per plan, ahead of Jul 31 earnings which is now a bigger risk than opportunity.", "session_id": "20260727-113143-f770a1"}, {"id": 5, "ts": "2026-07-27 11:32:35", "ticker": "SU.TO", "side": "sell", "shares": 7, "price": 89.92, "commission": 1.0, "notional": 629.44, "realized_pnl": -5.06, "reason": "Thesis-break: US paused Iran strikes 2nd straight night, talks turning positive, Brent -8.2% / WTI -7.6% today on de-escalation. Master thesis-break rule: sell pure upstream oil beta FIRST on credible de-escalation, regardless of price.", "session_id": "20260727-113143-f770a1"}, {"id": 4, "ts": "2026-07-27 11:28:24", "ticker": "SU.TO", "side": "buy", "shares": 7, "price": 90.5, "commission": 1.0, "notional": 633.5, "realized_pnl": null, "reason": "[queued 2026-07-24 22:56:43] Second integrated with major downstream/retail \u2014 same crack-spread capture as IMO at $100 Brent. Kept SMALLEST of the energy legs (14%) for two honest reasons: it is the most extended name in the group (+19.7% in a month, vs IMO +13%), and it is genuinely correlated with IMO rather than additive, so it is the redundant leg. It also showed weaker relative strength than IMO on Friday's -3% oil day (-0.67% vs -0.10%). Accepting that as the price of participation in the highest-liquidity integrated on the TSX ($317M/day). TIMELINE: 2-4 weeks. TARGET $103. STOP $85 (below the Jul 13-16 shelf). EXIT DISCIPLINE: this is the FIRST energy name I cut on any crack in the tape or a de-escalation headline \u2014 before IMO, before TOU.", "session_id": "pending-fill"}, {"id": 3, "ts": "2026-07-27 11:28:23", "ticker": "DPM.TO", "side": "buy", "shares": 15, "price": 52.93, "commission": 1.0, "notional": 793.95, "realized_pnl": null, "reason": "[queued 2026-07-24 22:56:38] DELIBERATE HEDGE + own catalyst. Gold is currently SUPPRESSED by the war, not helped by it: the oil spike is driving inflation expectations, which has the Fed pricing a hike and keeps the USD bid against non-yielding gold. So gold's re-rating trigger is DE-ESCALATION \u2014 precisely the event that breaks my IMO/TOU/SU thesis. This position is negatively exposed to my portfolio's single largest risk. COMPANY CATALYST (not just gold beta): DPM broke out Friday to a 3-month high at $52.45, +3.0% on 2.22M shares vs ~700k average \u2014 a 3x volume breakout clearing the entire Jun-Jul $40.60-$52.40 range. Fundamentals behind it: strong Q2 gold-equivalent production (Jul 8), Vares ramp-up replacing Ada Tepe, Chelopech mine life extended, Coka Rakita NAV upside. Banks see $4,500-4,900 gold by year-end if the Fed holds. TIMELINE: 3-6 weeks. TARGET $60. STOP $46.50 (below the breakout base). Sized 16% \u2014 smaller than the energy legs because it is the hedge, not the primary bet.", "session_id": "pending-fill"}, {"id": 2, "ts": "2026-07-27 11:28:23", "ticker": "TOU.TO", "side": "buy", "shares": 15, "price": 63.85, "commission": 1.0, "notional": 957.75, "realized_pnl": null, "reason": "[queued 2026-07-24 22:56:29] CATALYST: the non-oil leg of the energy trade. Qatar supplies ~20% of global LNG and it transits Hormuz \u2014 with the strait effectively closed, international LNG pricing is spiking. Tourmaline is Canada's largest gas producer with direct international LNG-linked contracts, plus LNG Canada at Kitimat now approaching its 2 Bcf/d nameplate (feedgas demand). Guided FCF ~$0.9B for 2026 and 2027 on higher condensate, propane and international LNG realizations. TELL: TOU closed +0.41% on Friday while WTI fell 3% and every oil name was red \u2014 it is trading on gas/LNG, not crude, which is exactly the diversification I want inside energy. Q2 print Aug 5. RISK: near-term AECO spot remains soft (mgmt calls the WCSB glut temporary, and is storing at Dimsdale to defer summer sales) \u2014 the thesis rests on international LNG pricing, not AECO. TIMELINE: 2-4 weeks. TARGET $72. STOP $60.", "session_id": "pending-fill"}, {"id": 1, "ts": "2026-07-27 11:28:22", "ticker": "IMO.TO", "side": "buy", "shares": 5, "price": 176.88, "commission": 1.0, "notional": 884.4, "realized_pnl": null, "reason": "[queued 2026-07-24 22:56:22] CATALYST: Brent topped $100 (Jul 23) with Hormuz effectively closed and Houthis now threatening the Red Sea as a second chokepoint; US on day 13 of strikes on Iran. IMO is an integrated with large refining exposure \u2014 crack spreads blow out when crude spikes, so it captures upside without pure crude beta. Q2 earnings Jul 31 is a near-term catalyst into a quarter with exceptional cracks. TELL: on Friday's -3% WTI day IMO closed -0.10% while pure upstream CNQ fell -1.09% \u2014 best relative strength in the group, holding $181 near highs. TIMELINE: 2-4 weeks, through the Jul 31 print. TARGET $200. STOP $168 (below the Jul 15-16 consolidation shelf). EXIT ALSO: any credible US-Iran de-escalation/Hormuz reopening headline \u2014 sell same day regardless of price.", "session_id": "pending-fill"}], "latest_note": {"ts": "2026-07-27 11:33:02", "content": "SESSION 3 (monitoring check-in) \u2014 2026-07-27 11:31 EDT. MASTER THESIS-BREAK TRIGGERED AND EXECUTED.\n\nTRIGGER: US paused Iran strikes for a 2nd straight night (Fri+overnight), talks \"moving in positive direction.\" Brent -8.2% to $90.28, WTI -7.6% to $83.60 today \u2014 biggest single-day de-escalation move of the whole campaign. Confirmed via CBS News + TradingEconomics.\n\nACTIONS: Per the pre-committed rule (\"SELL SU FIRST, then IMO, same day, regardless of price\"):\n- SOLD SU.TO 7sh @ $89.92, realized -$5.06. Cash +$628.44.\n- SOLD IMO.TO 5sh @ $176.49, realized -$2.95. Cash +$881.45. (Was 2 trading days from Q2 print Jul 31 \u2014 de-risked ahead of it too.)\n- Small realized losses, but avoided being long crude beta into what could be a real Hormuz reopening. Round trip was fast/cheap on IBKR pricing.\n\nHELD, NOT SOLD:\n- DPM.TO 15sh (avg $52.93, last $50.92, -3.8%) \u2014 per thesis this is the DE-ESCALATION BENEFICIARY (gold rallies when the war-risk premium/Fed-hawkish pressure lifts). Down today with the broad risk-off/oil-crash tape, which is a short-term correlation, not thesis-break. Stop unchanged $46.50, target $60. Watch: if gold doesn't catch a bid within a few sessions of a real de-escalation, reassess \u2014 that would falsify the \"gold needs war to end\" thesis.\n- TOU.TO 15sh (avg $63.85, last $64.30, +0.7%) \u2014 NOT part of the SU/IMO oil-beta sell trigger (it's the LNG/gas leg). Caveat: if Hormuz genuinely reopens, Qatari LNG flows normalize too, which softens (not breaks) the international-LNG-pricing spike part of the thesis. Reports earnings Jul 29 \u2014 hold through, stop $60, target $72. Re-underwrite after the print regardless of macro.\n\nCASH: now ~$3,236 of $4,968 equity (~65%) after these two exits \u2014 deliberately raised, not fully redeployed, because the macro regime just flipped mid-session and I don't yet know if de-escalation sticks (precedent: a June MOU reopening later deteriorated into the current crisis \u2014 de-escalation headlines here have been reversed before). Do NOT chase into new oil longs; wait for the tape to confirm direction over the next session or two.\n\nNEXT SESSION TO-DO: (1) confirm whether de-escalation is holding or reversing (Iran has flip-flopped before), (2) reassess DPM as gold plays out, (3) watch TOU's Jul 29 print, (4) IMO Q2 print Jul 31 \u2014 no longer a position but worth watching for read-through, (5) redeploy the ~65% cash only into a fresh, verified catalyst \u2014 do not rebuild the same oil trade reflexively."}};
+const D = {"dailies": [{"date": "2026-07-28", "ts": "2026-07-28 14:22:09", "content": "# Daily summary \u2014 2026-07-28\n\nEquity $4,924.02  |  day P&L -28.42 (-0.57%)  |  ZSP.TO today +0.26%\nSince inception: -1.52% vs S&P 500 +0.30% (alpha -1.82%)  |  cash $3,599.94\n\n## Trades today (4)\n- SELL 15 DPM.TO @ 49.980  [realized -45.25]\n  - THESIS FALSIFIED \u2014 executing my own pre-committed test. I bought DPM explicitly as the DE-ESCALATION HEDGE, on the logic that gold was being SUPPRESSED by the war (oil-inflation spike -> hawkish Fed -> bid USD) and would therefore re-rate when the war ENDED. I wrote the falsification test into my la\n- SELL 15 TOU.TO @ 62.860  [realized -15.85]\n  - EXITING AHEAD OF A BINARY PRINT ON A THESIS THAT NO LONGER EXISTS. The specific catalyst that sized this position was: \"Qatar supplies ~20% of global LNG and it transits Hormuz \u2014 with the strait effectively closed, international LNG pricing is spiking,\" giving TOU's internationally-linked realizatio\n- BUY 33 AC.TO @ 25.470\n  - CATALYST: GUIDANCE REINSTATEMENT + mechanical fuel tailwind. This is the cleanest way to be long the de-escalation I just sold energy into. On Apr 30 Air Canada SUSPENDED its full-year 2026 guidance for one explicit reason: jet-fuel volatility driven by the Iran war (Q1 carried a C$90M fuel headwind\n- BUY 1 CLS.TO @ 484.440\n  - CATALYST ALREADY IN HAND \u2014 post-earnings drift on a large guidance RAISE. This was on my watchlist with the explicit instruction \"reports JUL 27, watch the reaction, do not pre-position.\" I did not pre-position; the reaction is now known and it is decisively positive, so I am buying the confirmation\n\n## Open positions\n- AC.TO: 33 sh @ 25.47, last 25.47, P&L +0.00 (+0.00%)\n- CLS.TO: 1 sh @ 484.44, last 483.57, P&L -0.87 (-0.18%)\n\n## AI session recap\n## Session summary\n\n**The regime flipped and I flipped with it.** De-escalation is now confirmed, not a headline: WTI has fallen ~20% in three sessions ($100 \u2192 $79). I liquidated both legacy positions and rebuilt around the other side of that trade.\n\n**Sold DPM.TO** (\u2212$45, \u22125.6%). I had written the falsification test into my last note: *\"if gold doesn't catch a bid within a few sessions of a real de-escalation, reassess.\"* That test ran and failed. Gold fell to $4,029 and is \u221228% from its January record specifically on **hawkish Fed** expectations \u2014 the mechanism ran backwards, with hike odds *rising* to 46.5% even as oil crashed. Confirmed technically by a failed breakout: I'd filled the exact gap-up high on Jul 27 and it closed lower three sessions running.\n\n**Sold TOU.TO** (\u2212$16, \u22121.6%). Its catalyst was the Hormuz closure spiking international LNG \u2014 precisely what de-escalation dismantles. With North American gas also falling to $2.72 there was no offset, and I wasn't willing to hold 19% of the book through tonight's binary print with the thesis already gone.\n\n**Bought AC.TO, 33 sh @ $25.47 (17%).** Air Canada suspended its 2026 guidance in April *explicitly* over war-driven jet fuel \u2014 the exact cause now being removed. Fuel is ~25\u201330% of costs, so this is mechanical, not a story, and the chart confirms the linkage (it fell to $22.58 as crude hit $100, then +12.6% in two sessions). Target $29, stop $23.40.\n\n**Bought CLS.TO, 1 sh @ $484 (10%).** My prior note said \"watch the reaction, do not pre-position\" \u2014 I didn't, and the reaction was decisive: revenue +62%, EPS $2.54 vs $1.39, and FY guidance raised *past* consensus. At ~$343 USD vs a ~$427 USD average target and 26% below its 52-week high, the drift has room. Target $560, stop $425.\n\n**One process catch worth flagging:** a generic earnings calendar listed Air Canada as reporting tomorrow. Air Canada's own July 21 advisory confirms **August 12** \u2014 had I trusted the calendar I'd have either skipped a good setup or walked into the same binary print I just sold TOU to avoid.\n\n**Holding 73% cash deliberately.** The FOMC decides tomorrow at ~46.5% hike odds, and CLS is the most rate-duration-sensitive thing I own \u2014 sizing it at the 20% cap into a coin flip would be reckless. The cash is committed to a plan, not idle: if the Fed holds and CLS stays above $460, I add; if it hikes, I buy the tech dip below $430 and lean toward AC over duration.\n\nHonest self-criticism recorded in my notes: Session 2's book was really *one* macro bet wearing four tickers, which is why the flip forced a full liquidation rather than a rotation. Diversify by **driver**, not by ticker."}, {"date": "2026-07-27", "ts": "2026-07-27 16:49:15", "content": "# Daily summary \u2014 2026-07-27\n\nEquity $4,955.59  |  day P&L -44.41 (-0.89%)  |  ZSP.TO today +0.03%\nSince inception: -0.89% vs S&P 500 +0.17% (alpha -1.06%)  |  cash $3,236.29\n\n## Trades today (6)\n- BUY 5 IMO.TO @ 176.880\n  - [queued 2026-07-24 22:56:22] CATALYST: Brent topped $100 (Jul 23) with Hormuz effectively closed and Houthis now threatening the Red Sea as a second chokepoint; US on day 13 of strikes on Iran. IMO is an integrated with large refining exposure \u2014 crack spreads blow out when crude spikes, so it captur\n- BUY 15 TOU.TO @ 63.850\n  - [queued 2026-07-24 22:56:29] CATALYST: the non-oil leg of the energy trade. Qatar supplies ~20% of global LNG and it transits Hormuz \u2014 with the strait effectively closed, international LNG pricing is spiking. Tourmaline is Canada's largest gas producer with direct international LNG-linked contracts,\n- BUY 15 DPM.TO @ 52.930\n  - [queued 2026-07-24 22:56:38] DELIBERATE HEDGE + own catalyst. Gold is currently SUPPRESSED by the war, not helped by it: the oil spike is driving inflation expectations, which has the Fed pricing a hike and keeps the USD bid against non-yielding gold. So gold's re-rating trigger is DE-ESCALATION \u2014 p\n- BUY 7 SU.TO @ 90.500\n  - [queued 2026-07-24 22:56:43] Second integrated with major downstream/retail \u2014 same crack-spread capture as IMO at $100 Brent. Kept SMALLEST of the energy legs (14%) for two honest reasons: it is the most extended name in the group (+19.7% in a month, vs IMO +13%), and it is genuinely correlated with\n- SELL 7 SU.TO @ 89.920  [realized -5.06]\n  - Thesis-break: US paused Iran strikes 2nd straight night, talks turning positive, Brent -8.2% / WTI -7.6% today on de-escalation. Master thesis-break rule: sell pure upstream oil beta FIRST on credible de-escalation, regardless of price.\n- SELL 5 IMO.TO @ 176.490  [realized -2.95]\n  - Thesis-break: same de-escalation headline (US-Iran strike pause, oil crashing 8%). Refining-crack cushion doesn't offset a crude collapse of this size; exiting same day per plan, ahead of Jul 31 earnings which is now a bigger risk than opportunity.\n\n## Open positions\n- DPM.TO: 15 sh @ 52.93, last 51.05, P&L -28.20 (-3.55%)\n- TOU.TO: 15 sh @ 63.85, last 63.57, P&L -4.20 (-0.44%)\n\n## AI session recap\nChecked both positions \u2014 no action needed, thesis intact on both:\n\n- **DPM.TO** (-3.24% today, last $50.75): Gold is actually *up* slightly today ($4,083, +0.7%) on the same Iran de-escalation news that's driving the stock's own moves \u2014 so DPM's dip looks like broad equity/risk-off noise or profit-taking after last week's breakout, not a thesis break. No fresh negative news; Q1 was strong (revenue +115% YoY). Stop $46.50, target $60 \u2014 well clear of the stop, holding.\n- **TOU.TO** (-2.27% today, last $63.65): No negative catalyst \u2014 TD raised target to $66, Desjardins to $68, insider buying in early July, Scotiabank strong-buy. Reports earnings Jul 29 as planned. Stop $60, target $72 \u2014 holding through the print.\n- Iran/Hormuz situation: still a fragile, back-and-forth de-escalation (talks ongoing, no full resolution), consistent with last session's read \u2014 nothing new that changes positioning.\n\nNo trades this check-in; nothing hit a stop, target, or thesis-break trigger."}, {"date": "2026-07-25", "ts": "2026-07-25 14:53:34", "content": "# Daily summary \u2014 2026-07-25\n\nEquity $5,000.00  |  day P&L +0.00 (+0.00%)\nSince inception: +0.00% vs S&P 500 +0.00% (alpha +0.00%)  |  cash $5,000.00\n\n## Trades today\n- none\n\n## Open positions\n- none (all cash)\n\n## Pending market-on-open orders\n- BUY IMO.TO $980\n- BUY TOU.TO $980\n- BUY DPM.TO $800\n- BUY SU.TO $700\n"}, {"date": "2026-07-24", "ts": "2026-07-24 22:58:47", "content": "# Daily summary \u2014 2026-07-24\n\nEquity $5,000.00  |  day P&L +0.00 (+0.00%)\nSince inception: +0.00% vs S&P 500 +0.00% (alpha +0.00%)  |  cash $5,000.00\n\n## Trades today\n- none\n\n## Open positions\n- none (all cash)\n\n## Pending market-on-open orders\n- BUY IMO.TO $980\n- BUY TOU.TO $980\n- BUY DPM.TO $800\n- BUY SU.TO $700\n\n## AI session recap\n**Done \u2014 four orders queued for Monday's open, $3,460 deployed (69%), $1,540 cash.**\n\n**Thesis re-verified and it got stronger, not weaker.** Brent topped $100 on Jul 23, the Houthis opened a *second* chokepoint in the Red Sea while Hormuz is still shut, and the US is on day 13 of strikes. Friday's -3% oil day was profit-taking inside a week that was still +10%.\n\n**What I bought:**\n\n- **IMO $980 (20%)** \u2014 Refining cracks blow out at $100 Brent, so it captures the move without pure crude beta. Q2 print Jul 31 is a live catalyst into an exceptional quarter.\n- **TOU $980 (20%)** \u2014 The non-oil leg. Qatar is ~20% of global LNG and it *also* transits Hormuz, so international LNG pricing is spiking; TOU has direct LNG-linked contracts plus LNG Canada ramping to nameplate.\n- **DPM $800 (16%)** \u2014 A deliberate hedge, and the most useful thing I found. Gold is being *suppressed* by this war: the oil-inflation spike keeps the Fed hawkish and the USD bid. Gold's trigger is de-escalation \u2014 exactly what breaks my three energy legs. It also broke out Friday to a 3-month high on 3x volume with its own drivers (Vare\u0161 ramp, \u010coka Rakita).\n- **SU $700 (14%)** \u2014 Smallest on purpose. It's the redundant leg: correlated with IMO, most extended at +19.7%/mo, weaker tell.\n\n**The sizing came from one test.** On Friday's -3% oil day: TOU +0.41% > IMO -0.10% > SU -0.67% > CNQ -1.09%. That ranking set both position sizes and my exit order. **I dropped CNQ entirely** \u2014 pure upstream had the weakest tell, and adding a fourth crude name would have collapsed the book into a single bet.\n\n**Two things I'm watching.** The master thesis-break is unchanged: any credible de-escalation headline and I sell SU first, then IMO, same day \u2014 but I *hold* DPM into it, since it's the beneficiary. And IMO (Jul 31) and TOU (Aug 5) both report inside my window; I'm holding through, but they're defined binary risks, not free catalysts.\n\nOne judgment call worth flagging: I'm buying energy after a +10% week, near the highs. IMO's refusal to drop on a -3% oil day is what justified it \u2014 but if that relative strength breaks on the next down-oil day, the entry premise is gone regardless of where the stops sit.\n\nSources: [CNN](https://www.cnn.com/2026/07/23/world/live-news/iran-war-trump) \u00b7 [Invezz \u2014 oil](https://invezz.com/news/2026/07/24/oil-prices-fall-3-but-remain-on-track-for-biggest-weekly-gains-in-months/) \u00b7 [Invezz \u2014 gold](https://invezz.com/news/2026/07/24/gold-falls-despite-war-risks-has-100-oil-rewritten-the-safe-haven-trade/) \u00b7 [Imperial Oil IR](https://news.imperialoil.ca/news-releases/news-releases/2026/Imperial-to-hold-2026-Second-Quarter-Earnings-Call/default.aspx) \u00b7 [RBN Energy \u2014 Tourmaline](https://rbnenergy.com/daily-posts/analyst-insight/q1-2026-earnings-calls-tourmaline-says-western-canadas-gas-glut-looks)"}], "generated": "2026-07-28 14:22 ET", "market": {"now_toronto": "2026-07-28 14:22 EDT", "is_open": true, "session": "open", "detail": "regular session"}, "perf": {"starting_cash": 5000.0, "equity": 4924.02, "cash": 3599.94, "return_pct": -1.52, "benchmarks": {"ZSP.TO": {"inception": 114.41999816894531, "now": 114.76, "return_pct": 0.3}, "^GSPTSE": {"inception": 35369.1015625, "now": 35682.12, "return_pct": 0.89}}, "alpha_vs_sp500_pct": -1.82}, "series": [{"ts": "2026-07-24 22:09:40", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}, {"ts": "2026-07-24 22:54:01", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}, {"ts": "2026-07-24 22:57:20", "portfolio": 100.0, "sp500": 100.0, "tsx": 100.0}, {"ts": "2026-07-27 11:28:25", "portfolio": 99.476, "sp500": 99.991, "tsx": 100.008}, {"ts": "2026-07-27 11:28:53", "portfolio": 99.46, "sp500": 99.991, "tsx": 99.995}, {"ts": "2026-07-27 11:31:43", "portfolio": 99.372, "sp500": 100.026, "tsx": 100.05}, {"ts": "2026-07-27 11:33:08", "portfolio": 99.319, "sp500": 100.026, "tsx": 100.028}, {"ts": "2026-07-27 12:05:51", "portfolio": 99.247, "sp500": 100.026, "tsx": 99.913}, {"ts": "2026-07-27 12:06:24", "portfolio": 99.247, "sp500": 100.026, "tsx": 99.906}, {"ts": "2026-07-27 14:17:12", "portfolio": 99.046, "sp500": 100.035, "tsx": 100.195}, {"ts": "2026-07-27 14:17:40", "portfolio": 99.049, "sp500": 100.035, "tsx": 100.199}, {"ts": "2026-07-28 11:06:44", "portfolio": 98.662, "sp500": 100.009, "tsx": 100.499}, {"ts": "2026-07-28 11:07:10", "portfolio": 98.662, "sp500": 100.009, "tsx": 100.49}, {"ts": "2026-07-28 11:56:55", "portfolio": 98.68, "sp500": 100.402, "tsx": 100.99}, {"ts": "2026-07-28 11:57:19", "portfolio": 98.689, "sp500": 100.411, "tsx": 101.001}, {"ts": "2026-07-28 13:18:50", "portfolio": 98.63, "sp500": 100.376, "tsx": 100.976}, {"ts": "2026-07-28 13:19:11", "portfolio": 98.63, "sp500": 100.376, "tsx": 100.976}, {"ts": "2026-07-28 14:14:57", "portfolio": 98.575, "sp500": 100.332, "tsx": 100.848}, {"ts": "2026-07-28 14:22:06", "portfolio": 98.474, "sp500": 100.297, "tsx": 100.885}], "positions": [{"ticker": "AC.TO", "shares": 33, "avg_cost": 25.47, "last": 25.47, "market_value": 840.51, "unrealized_pnl": 0.0, "unrealized_pct": 0.0, "day_change_pct": 5.12}, {"ticker": "CLS.TO", "shares": 1, "avg_cost": 484.44, "last": 483.57, "market_value": 483.57, "unrealized_pnl": -0.87, "unrealized_pct": -0.18, "day_change_pct": 7.71}], "pending": [], "trades": [{"id": 10, "ts": "2026-07-28 14:21:15", "ticker": "CLS.TO", "side": "buy", "shares": 1, "price": 484.44, "commission": 1.0, "notional": 484.44, "realized_pnl": null, "reason": "CATALYST ALREADY IN HAND \u2014 post-earnings drift on a large guidance RAISE. This was on my watchlist with the explicit instruction \"reports JUL 27, watch the reaction, do not pre-position.\" I did not pre-position; the reaction is now known and it is decisively positive, so I am buying the confirmation rather than the coin flip. VERIFIED Q2 (reported Jul 27 after close): revenue $4.70B, +62% y/y, vs $4.39B consensus; adj EPS $2.54 vs $1.39 y/y; adj operating margin 8.2% vs 7.4%. Both revenue and EPS beat the HIGH END of guidance. THE REAL CATALYST IS THE RAISE: FY2026 outlook lifted to $20.5B revenue and $11.30 adj EPS, from $19.0B/$10.15 \u2014 and the new EPS guide is above the $10.15 consensus, i.e. management guided past the street, not to it. Q3 guided $5.25-5.55B revenue and $2.88-3.08 adj EPS. Analyst targets are following: Susquehanna $460->$510, Citi $338->$415, TD upgraded Hold->Buy. VALUATION HEADROOM (the key check): CLS.TO at ~$483 CAD is ~$343 USD at 1.41 USDCAD, versus an average analyst target of ~$427 USD \u2014 roughly 24% upside to consensus, and the stock is 26% BELOW its 52-week high of $655.50 CAD. So despite today's +7.5%, I am not buying an extended name at a new high; I am buying a name recovering from a 19% drawdown ($517 Jun 30 -> $421 Jul 17) with a fresh fundamental re-rating. TIMELINE: 2-4 weeks of drift. TARGET $560 (through the Jun high $518). STOP $425 \u2014 below the Jul 27 pre-print close ($449) and into the Jul 17-20 base ($421-431). SIZE ONLY 10%, deliberately small for a high-conviction catalyst, for two honest reasons: (1) CLS is violently volatile, swinging 8-10% intraday, and (2) tomorrow's FOMC carries 46.5% hike odds and this is the most rate-duration-sensitive thing I own. The $483 share price also forces whole-share granularity \u2014 2 shares would be 19.6%, at the position cap, which is far too much into a binary Fed. I will ADD after the Fed if it holds above $460.", "session_id": "20260728-141457-df9e5d"}, {"id": 9, "ts": "2026-07-28 14:21:03", "ticker": "AC.TO", "side": "buy", "shares": 33, "price": 25.47, "commission": 1.0, "notional": 840.51, "realized_pnl": null, "reason": "CATALYST: GUIDANCE REINSTATEMENT + mechanical fuel tailwind. This is the cleanest way to be long the de-escalation I just sold energy into. On Apr 30 Air Canada SUSPENDED its full-year 2026 guidance for one explicit reason: jet-fuel volatility driven by the Iran war (Q1 carried a C$90M fuel headwind, C$55M net of hedges; a third of Q2 fuel was unpriced). That exact cause is now being removed \u2014 WTI has collapsed from $100 (Jul 23) to $79.11, ~-20% in three sessions, as the US-Iran de-escalation holds. Fuel is ~25-30% of an airline's cost base, so this is a mechanical earnings tailwind, not a story. VERIFIED TIMELINE: Q2 results + analyst call AUGUST 12 (confirmed directly from Air Canada's own Jul 21 media advisory on GlobeNewswire \u2014 a generic earnings calendar wrongly listed Jul 29, so I checked; there is NO print tonight). That gives a 2-week runway with no event risk into tomorrow's Fed, and a hard catalyst date inside my swing horizon where reinstated guidance is the upside trigger. TECHNICAL CONFIRMATION of the fuel linkage: AC ran $18 -> $25.37 (Jul 7), then sold off to $22.58 (Jul 17-23) precisely as crude went to $100, and has now ripped +12.6% in two sessions ($22.65 -> $25.48) on the crude crash, breaking to a new 3-month high today ($25.56 intraday). The stock trades directly off fuel, which is the variable I have a view on. DIVERSIFICATION: this is deliberately NOT high-multiple tech, so it is far less exposed to tomorrow's FOMC (46.5% hike odds) than CSU/SHOP/CLS. SIZE 17% \u2014 high conviction given a verified catalyst date and a mechanical driver. TARGET $29 (reclaiming the pre-war trend). STOP $23.40 \u2014 below the Jul 27 gap-up open ($23.85) and the Jul 20-23 base; a close under that means the oil-crash trade has fully round-tripped and the thesis is void. RISK: AC is leveraged and economically sensitive, and Q2 itself (Apr-Jun) still contains the HIGH-fuel quarter \u2014 so the backward-looking print may be soft; the trade is on forward guidance and Q3 fuel, and I will judge it on the guidance, not the Q2 EPS.", "session_id": "20260728-141457-df9e5d"}, {"id": 8, "ts": "2026-07-28 14:18:18", "ticker": "TOU.TO", "side": "sell", "shares": 15, "price": 62.86, "commission": 1.0, "notional": 942.9, "realized_pnl": -15.85, "reason": "EXITING AHEAD OF A BINARY PRINT ON A THESIS THAT NO LONGER EXISTS. The specific catalyst that sized this position was: \"Qatar supplies ~20% of global LNG and it transits Hormuz \u2014 with the strait effectively closed, international LNG pricing is spiking,\" giving TOU's internationally-linked realizations a windfall. That catalyst is being actively dismantled. Hormuz de-escalation is real and deepening (WTI $100 on Jul 23 -> $79.11 now, ~-20% in three sessions), which normalizes Qatari LNG flows and pulls down the JKM/TTF international pricing my thesis was levered to. I flagged this exact risk last session (\"if Hormuz genuinely reopens, Qatari LNG flows normalize too, which softens the international-LNG-pricing spike part of the thesis\"). SECOND LEG ALSO WEAK: I noted the thesis rests on international LNG, NOT AECO, because AECO spot was soft \u2014 but North American gas has kept falling, $2.72/MMBtu today (-1.75%), so there is no domestic offset. EVENT RISK: Q2 results land TOMORROW (Jul 29) after close. Q2 itself (Apr-Jun) captured the wartime price spike so the backward-looking print may well beat \u2014 but the forward guidance and realizations are what re-rate the stock, and those now face normalizing international gas. Holding 19% of the book through a binary event where my catalyst has been removed and only the downside guidance risk remains is a gamble, not edge. My rule is to re-underwrite after the print; the honest re-underwrite done BEFORE the print says the reason I owned it is gone. Taking ~-1.6% (~-$15) \u2014 a cheap exit \u2014 to redeploy into catalysts already in hand rather than ones I have to pray for. TOU remains a quality gas producer with a real LNG Canada ramp; it is a fine business but no longer a swing-trade catalyst, and I will re-enter on a post-print setup if the guidance is strong and gas turns.", "session_id": "20260728-141457-df9e5d"}, {"id": 7, "ts": "2026-07-28 14:17:21", "ticker": "DPM.TO", "side": "sell", "shares": 15, "price": 49.98, "commission": 1.0, "notional": 749.7, "realized_pnl": -45.25, "reason": "THESIS FALSIFIED \u2014 executing my own pre-committed test. I bought DPM explicitly as the DE-ESCALATION HEDGE, on the logic that gold was being SUPPRESSED by the war (oil-inflation spike -> hawkish Fed -> bid USD) and would therefore re-rate when the war ENDED. I wrote the falsification test into my last note: \"if gold doesn't catch a bid within a few sessions of a real de-escalation, reassess.\" That test has now run and FAILED. De-escalation is real and deepening \u2014 WTI has collapsed from $100 (Jul 23) to $79.11 (-3% today, after -7.6% yesterday), a ~20% two-session crash. Gold did NOT catch a bid: it is $4,029, -0.5% today, and per today's reporting is down 28% from its January record specifically ON HAWKISH FED EXPECTATIONS. Worse, the mechanism ran backwards \u2014 rate-HIKE odds have RISEN to 35.8% from 25.8% last week even as oil crashed, so the \"Fed pressure lifts when oil falls\" link that the entire hedge rested on is not operating. ADDED RISK: a Fed decision lands this week with rising hike odds \u2014 that is asymmetric downside for a non-yielding gold miner, not a catalyst I want to be long into. TECHNICAL CONFIRMATION: the breakout that justified the entry has failed. I filled at $52.93 \u2014 the exact gap-up open on Jul 27 \u2014 it reversed the same day to close $51.05, and has now closed lower three sessions running ($51.05 -> $50.01), back inside the Jun-Jul range it was supposed to have cleared. Stop $46.50 is not hit, but I exit on a broken thesis rather than waiting for a stop to confirm what I already know. Taking ~-5.6% (~-$45) to redeploy into verified earnings catalysts on the right side of this regime.", "session_id": "20260728-141457-df9e5d"}, {"id": 6, "ts": "2026-07-27 11:32:37", "ticker": "IMO.TO", "side": "sell", "shares": 5, "price": 176.49, "commission": 1.0, "notional": 882.45, "realized_pnl": -2.95, "reason": "Thesis-break: same de-escalation headline (US-Iran strike pause, oil crashing 8%). Refining-crack cushion doesn't offset a crude collapse of this size; exiting same day per plan, ahead of Jul 31 earnings which is now a bigger risk than opportunity.", "session_id": "20260727-113143-f770a1"}, {"id": 5, "ts": "2026-07-27 11:32:35", "ticker": "SU.TO", "side": "sell", "shares": 7, "price": 89.92, "commission": 1.0, "notional": 629.44, "realized_pnl": -5.06, "reason": "Thesis-break: US paused Iran strikes 2nd straight night, talks turning positive, Brent -8.2% / WTI -7.6% today on de-escalation. Master thesis-break rule: sell pure upstream oil beta FIRST on credible de-escalation, regardless of price.", "session_id": "20260727-113143-f770a1"}, {"id": 4, "ts": "2026-07-27 11:28:24", "ticker": "SU.TO", "side": "buy", "shares": 7, "price": 90.5, "commission": 1.0, "notional": 633.5, "realized_pnl": null, "reason": "[queued 2026-07-24 22:56:43] Second integrated with major downstream/retail \u2014 same crack-spread capture as IMO at $100 Brent. Kept SMALLEST of the energy legs (14%) for two honest reasons: it is the most extended name in the group (+19.7% in a month, vs IMO +13%), and it is genuinely correlated with IMO rather than additive, so it is the redundant leg. It also showed weaker relative strength than IMO on Friday's -3% oil day (-0.67% vs -0.10%). Accepting that as the price of participation in the highest-liquidity integrated on the TSX ($317M/day). TIMELINE: 2-4 weeks. TARGET $103. STOP $85 (below the Jul 13-16 shelf). EXIT DISCIPLINE: this is the FIRST energy name I cut on any crack in the tape or a de-escalation headline \u2014 before IMO, before TOU.", "session_id": "pending-fill"}, {"id": 3, "ts": "2026-07-27 11:28:23", "ticker": "DPM.TO", "side": "buy", "shares": 15, "price": 52.93, "commission": 1.0, "notional": 793.95, "realized_pnl": null, "reason": "[queued 2026-07-24 22:56:38] DELIBERATE HEDGE + own catalyst. Gold is currently SUPPRESSED by the war, not helped by it: the oil spike is driving inflation expectations, which has the Fed pricing a hike and keeps the USD bid against non-yielding gold. So gold's re-rating trigger is DE-ESCALATION \u2014 precisely the event that breaks my IMO/TOU/SU thesis. This position is negatively exposed to my portfolio's single largest risk. COMPANY CATALYST (not just gold beta): DPM broke out Friday to a 3-month high at $52.45, +3.0% on 2.22M shares vs ~700k average \u2014 a 3x volume breakout clearing the entire Jun-Jul $40.60-$52.40 range. Fundamentals behind it: strong Q2 gold-equivalent production (Jul 8), Vares ramp-up replacing Ada Tepe, Chelopech mine life extended, Coka Rakita NAV upside. Banks see $4,500-4,900 gold by year-end if the Fed holds. TIMELINE: 3-6 weeks. TARGET $60. STOP $46.50 (below the breakout base). Sized 16% \u2014 smaller than the energy legs because it is the hedge, not the primary bet.", "session_id": "pending-fill"}, {"id": 2, "ts": "2026-07-27 11:28:23", "ticker": "TOU.TO", "side": "buy", "shares": 15, "price": 63.85, "commission": 1.0, "notional": 957.75, "realized_pnl": null, "reason": "[queued 2026-07-24 22:56:29] CATALYST: the non-oil leg of the energy trade. Qatar supplies ~20% of global LNG and it transits Hormuz \u2014 with the strait effectively closed, international LNG pricing is spiking. Tourmaline is Canada's largest gas producer with direct international LNG-linked contracts, plus LNG Canada at Kitimat now approaching its 2 Bcf/d nameplate (feedgas demand). Guided FCF ~$0.9B for 2026 and 2027 on higher condensate, propane and international LNG realizations. TELL: TOU closed +0.41% on Friday while WTI fell 3% and every oil name was red \u2014 it is trading on gas/LNG, not crude, which is exactly the diversification I want inside energy. Q2 print Aug 5. RISK: near-term AECO spot remains soft (mgmt calls the WCSB glut temporary, and is storing at Dimsdale to defer summer sales) \u2014 the thesis rests on international LNG pricing, not AECO. TIMELINE: 2-4 weeks. TARGET $72. STOP $60.", "session_id": "pending-fill"}, {"id": 1, "ts": "2026-07-27 11:28:22", "ticker": "IMO.TO", "side": "buy", "shares": 5, "price": 176.88, "commission": 1.0, "notional": 884.4, "realized_pnl": null, "reason": "[queued 2026-07-24 22:56:22] CATALYST: Brent topped $100 (Jul 23) with Hormuz effectively closed and Houthis now threatening the Red Sea as a second chokepoint; US on day 13 of strikes on Iran. IMO is an integrated with large refining exposure \u2014 crack spreads blow out when crude spikes, so it captures upside without pure crude beta. Q2 earnings Jul 31 is a near-term catalyst into a quarter with exceptional cracks. TELL: on Friday's -3% WTI day IMO closed -0.10% while pure upstream CNQ fell -1.09% \u2014 best relative strength in the group, holding $181 near highs. TIMELINE: 2-4 weeks, through the Jul 31 print. TARGET $200. STOP $168 (below the Jul 15-16 consolidation shelf). EXIT ALSO: any credible US-Iran de-escalation/Hormuz reopening headline \u2014 sell same day regardless of price.", "session_id": "pending-fill"}], "latest_note": {"ts": "2026-07-28 14:21:49", "content": "SESSION 4 \u2014 2026-07-28. FULL REGIME FLIP. Sold both legacy positions, rebuilt around post-de-escalation winners. Equity $4,924, cash $3,600 (73% \u2014 deliberate, FOMC tomorrow).\n\nWHAT HAPPENED: De-escalation CONFIRMED and deepening. WTI $100 (Jul 23) -> $79.11, ~-20% in 3 sessions. TSX tech +4.4% (SHOP +11.6% on RBC AI-defensibility note, CSU +6.4%), lower oil -> lower CAD yields -> financials bid. Classic peace-dividend rotation.\n\nEXITS (both on broken theses, not stops):\n- DPM.TO sold $49.98, -$45.25. MY FALSIFICATION TEST RAN AND FAILED. I owned gold as the de-escalation hedge (\"gold needs the war to END\"). War ended; gold FELL to $4,029, -28% from Jan record ON HAWKISH FED. Mechanism ran BACKWARDS: hike odds ROSE (34%->46.5%) even as oil crashed. Also a failed breakout \u2014 I filled the exact Jul 27 gap-up high $52.93, 3 lower closes since.\n- TOU.TO sold $62.86, -$15.85. Hormuz-LNG-spike catalyst is exactly what de-escalation removes (Qatari flows normalize, JKM/TTF fall). No AECO offset \u2014 gas $2.72 and falling. Refused to hold 19% into a binary Jul 29 print with the thesis gone.\n\nNEW POSITIONS:\n1. AC.TO 33sh @ $25.47 (17%). Guidance was SUSPENDED Apr 30 explicitly over war-driven jet fuel; that cause is being removed. Fuel ~25-30% of costs = mechanical tailwind. CATALYST: Q2 + guidance reinstatement AUG 12 (verified from AC's own Jul 21 advisory \u2014 a generic calendar wrongly said Jul 29; ALWAYS verify dates at the source). Chart confirms linkage: $25.37 -> $22.58 as crude hit $100, +12.6% in 2 sessions on the crash. TGT $29, STOP $23.40. Judge on GUIDANCE, not Q2 EPS (Q2 contains the high-fuel quarter).\n2. CLS.TO 1sh @ $484.44 (10%). Waited for the reaction instead of pre-positioning \u2014 it worked. Q2 rev $4.70B (+62%, beat $4.39B), adj EPS $2.54 vs $1.39, FY raised to $20.5B/$11.30 from $19.0B/$10.15 (guided PAST consensus). ~$343 USD vs ~$427 USD avg target (~24% upside); 26% below 52w high $655. TGT $560, STOP $425. Small only because CLS swings 8-10%/day and it's my most rate-sensitive name.\n\nNEXT SESSION: FOMC Jul 29 \u2014 46.5% hike odds, and ~40% expect TWO hikes by Dec. THE PLAN: if Fed HOLDS and CLS holds >$460, ADD CLS to ~18%. If Fed HIKES, high-multiple tech sells off \u2014 do NOT panic; use cash to buy the dip in quality (CLS <$430, CSU) and favour AC/banks over duration. Watch TOU's Jul 29 print for a re-entry setup if guidance is strong AND gas turns.\n\nLESSON: I built Session-2's book as one macro bet (3 of 4 names long the same war). When it flipped I had to liquidate everything at once. Diversify by DRIVER, not just by ticker."}};
 const fmt$ = x => x == null ? "-" : x.toLocaleString("en-CA", {style:"currency", currency:"CAD"});
 const pct = x => (x >= 0 ? "+" : "") + x.toFixed(2) + "%";
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---- theme toggle: auto -> dark -> light ---- */
+(function () {
+  const btn = document.getElementById("themebtn");
+  const order = ["auto", "dark", "light"];
+  const label = {auto: "◑ Auto", dark: "☽ Dark", light: "☀ Light"};
+  let cur = document.documentElement.dataset.theme || "auto";
+  const apply = () => {
+    if (cur === "auto") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = cur;
+    btn.textContent = label[cur];
+    try { cur === "auto" ? localStorage.removeItem("theme")
+                         : localStorage.setItem("theme", cur); } catch (e) {}
+  };
+  btn.addEventListener("click", () => {
+    cur = order[(order.indexOf(cur) + 1) % order.length]; apply();
+  });
+  apply();
+})();
 
 /* Minimal markdown renderer for AI-written notes/summaries (escapes first). */
 function mdInline(s) {
@@ -138,23 +250,50 @@ function mdBlock(text) {
 }
 
 document.getElementById("subline").textContent =
-  `Generated ${D.generated} · Market ${D.market.session} (${D.market.detail}) · ${D.market.now_toronto}`;
+  `Autonomous AI portfolio manager · TSX/TSXV · updated ${D.generated}`;
+
+/* ---- market status pill ---- */
+(function () {
+  const m = D.market;
+  const col = m.is_open ? "var(--good)"
+            : m.detail === "pre-market" ? "var(--warn)" : "var(--ink-muted)";
+  document.getElementById("mktpill").innerHTML =
+    `<span class="dot" style="background:${col}"></span>Market ${esc(m.session)} · ${esc(m.detail)}`;
+})();
 
 /* ---- stat tiles ---- */
 const perf = D.perf;
 const sp = perf.benchmarks["ZSP.TO"] || null;
 const alpha = perf.alpha_vs_sp500_pct;
+
+/* equity change vs the last snapshot of the previous day (~prior close) */
+let dayTxt = "", dayCls = "";
+if (D.series.length > 1) {
+  const last = D.series[D.series.length - 1];
+  const prior = [...D.series].reverse().find(p => p.ts.slice(0, 10) !== last.ts.slice(0, 10));
+  if (prior && prior.portfolio) {
+    const chg = (last.portfolio / prior.portfolio - 1) * 100;
+    dayTxt = `${pct(chg)} today`; dayCls = chg >= 0 ? "up" : "down";
+  }
+}
+
 const tiles = [
-  {label: "Equity", value: fmt$(perf.equity), delta: pct(perf.return_pct) + " since inception", cls: perf.return_pct >= 0 ? "up" : "down"},
-  {label: "Cash", value: fmt$(perf.cash), delta: (100 * perf.cash / perf.equity).toFixed(0) + "% of equity", cls: ""},
-  {label: "S&P 500 (ZSP.TO)", value: sp ? pct(sp.return_pct) : "-", delta: "same period", cls: sp && sp.return_pct >= 0 ? "up" : "down"},
+  {label: "Equity", value: fmt$(perf.equity),
+   delta: pct(perf.return_pct) + " since inception", cls: perf.return_pct >= 0 ? "up" : "down",
+   delta2: dayTxt, cls2: dayCls},
+  {label: "Cash", value: fmt$(perf.cash),
+   delta: (100 * perf.cash / perf.equity).toFixed(0) + "% of equity", cls: ""},
+  {label: "S&P 500 (ZSP.TO)", value: sp ? pct(sp.return_pct) : "-",
+   delta: "same period", cls: sp && sp.return_pct >= 0 ? "up" : "down"},
   {label: "Alpha vs S&P 500", value: alpha == null ? "-" : pct(alpha),
    delta: alpha == null ? "" : (alpha >= 0 ? "beating the index" : "trailing the index"),
    cls: alpha >= 0 ? "up" : "down"},
 ];
 document.getElementById("tiles").innerHTML = tiles.map(t =>
   `<div class="tile"><div class="label">${t.label}</div><div class="value">${t.value}</div>
-   <div class="delta ${t.cls}">${t.delta}</div></div>`).join("");
+   <div class="delta ${t.cls}">${t.delta}</div>` +
+  (t.delta2 ? `<div class="delta ${t.cls2}">${t.delta2}</div>` : "") +
+  `</div>`).join("");
 
 /* ---- chart ---- */
 const SERIES = [
@@ -166,7 +305,7 @@ document.getElementById("legend").innerHTML = SERIES.map(s =>
   `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join("");
 
 const svg = document.getElementById("chart");
-const W = 1000, H = 300, M = {t: 14, r: 158, b: 26, l: 46};
+const W = 1000, H = 320, M = {t: 16, r: 158, b: 28, l: 46};
 const pts = D.series.map(r => ({...r, t: new Date(r.ts.replace(" ", "T")).getTime()}));
 
 function drawChart() {
@@ -179,7 +318,9 @@ function drawChart() {
   const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
   const X = t => x0 === x1 ? (M.l + (W - M.l - M.r) / 2) : M.l + (t - x0) / (x1 - x0) * (W - M.l - M.r);
   const Y = v => M.t + (hi - v) / (hi - lo) * (H - M.t - M.b);
-  let g = "";
+  let g = `<defs><linearGradient id="gradP" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="var(--series-1)" stop-opacity="0.16"/>
+    <stop offset="1" stop-color="var(--series-1)" stop-opacity="0"/></linearGradient></defs>`;
   // gridlines + y ticks
   const steps = 4;
   for (let i = 0; i <= steps; i++) {
@@ -199,7 +340,14 @@ function drawChart() {
     const tx = X(pts[i].t);
     if (tx - lastTickX < 80) continue;
     lastTickX = tx;
-    g += `<text x="${tx}" y="${H - 6}" text-anchor="middle" font-size="11" fill="var(--ink-muted)">${tickLabel(pts[i])}</text>`;
+    g += `<text x="${tx}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--ink-muted)">${tickLabel(pts[i])}</text>`;
+  }
+  // gradient area under the portfolio line
+  const ppts = pts.filter(p => p.portfolio != null);
+  if (ppts.length > 1) {
+    const area = ppts.map((p, i) => (i === 0 ? "M" : "L") + X(p.t).toFixed(1) + " " + Y(p.portfolio).toFixed(1)).join(" ")
+      + ` L ${X(ppts[ppts.length - 1].t).toFixed(1)} ${H - M.b} L ${X(ppts[0].t).toFixed(1)} ${H - M.b} Z`;
+    g += `<path d="${area}" fill="url(#gradP)" stroke="none"/>`;
   }
   // lines
   const endLabels = [];
@@ -207,7 +355,7 @@ function drawChart() {
     const path = pts.filter(p => p[s.key] != null)
       .map((p, i) => (i === 0 ? "M" : "L") + X(p.t).toFixed(1) + " " + Y(p[s.key]).toFixed(1)).join(" ");
     if (!path) continue;
-    g += `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
+    g += `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>`;
     const lastPt = [...pts].reverse().find(p => p[s.key] != null);
     if (pts.length === 1 || x0 === x1)
       g += `<circle cx="${X(lastPt.t)}" cy="${Y(lastPt[s.key])}" r="4" fill="${s.color}"/>`;
@@ -220,7 +368,7 @@ function drawChart() {
     if (endLabels[i].y - endLabels[i - 1].y < 15) endLabels[i].y = endLabels[i - 1].y + 15;
   for (const l of endLabels) {
     g += `<circle cx="${W - M.r + 10}" cy="${l.y}" r="3.5" fill="${l.color}"/>`;
-    g += `<text x="${W - M.r + 18}" y="${l.y + 4}" font-size="12" fill="var(--ink-1)">${l.text}</text>`;
+    g += `<text x="${W - M.r + 18}" y="${l.y + 4}" font-size="12" font-weight="600" fill="var(--ink-1)">${l.text}</text>`;
   }
   // crosshair group (populated on hover)
   g += `<g id="hoverg"></g>`;
@@ -257,20 +405,22 @@ function drawChart() {
 drawChart();
 
 /* ---- tables ---- */
+const sidePill = s => `<span class="side ${s.toLowerCase() === "buy" ? "b" : "s"}">${esc(s.toUpperCase())}</span>`;
+
 function table(id, headers, rows, empty) {
   const el = document.getElementById(id);
   if (!rows.length) { el.innerHTML = `<div class="empty">${empty}</div>`; return; }
-  el.innerHTML = `<table><thead><tr>${headers.map(h =>
+  el.innerHTML = `<div class="tablewrap"><table><thead><tr>${headers.map(h =>
     `<th class="${h.num ? "num" : ""}">${h.t}</th>`).join("")}</tr></thead><tbody>` +
     rows.map(r => `<tr>${r.map((c, i) =>
       `<td class="${headers[i].num ? "num" : ""} ${headers[i].cls || ""} ${c && c.cls ? c.cls : ""}">${c && c.v !== undefined ? c.v : c}</td>`).join("")}</tr>`).join("") +
-    "</tbody></table>";
+    "</tbody></table></div>";
 }
 
 table("positions",
   [{t:"Ticker"},{t:"Shares",num:1},{t:"Avg cost",num:1},{t:"Last",num:1},{t:"Value",num:1},{t:"P&L",num:1},{t:"P&L %",num:1},{t:"Today",num:1}],
   D.positions.map(p => [
-    esc(p.ticker), p.shares, p.avg_cost.toFixed(2),
+    {v: esc(p.ticker), cls: "tick"}, p.shares, p.avg_cost.toFixed(2),
     p.last != null ? p.last.toFixed(2) : "-",
     p.market_value != null ? fmt$(p.market_value) : "-",
     p.unrealized_pnl != null ? {v: fmt$(p.unrealized_pnl), cls: p.unrealized_pnl >= 0 ? "up" : "down"} : "-",
@@ -279,23 +429,39 @@ table("positions",
   ]), "No open positions — the account is in cash.");
 
 table("pending",
-  [{t:"Placed"},{t:"Side"},{t:"Ticker"},{t:"Size",num:1},{t:"Reason",cls:"reason"}],
-  D.pending.map(o => [esc(o.created_ts), o.side.toUpperCase(), esc(o.ticker),
+  [{t:"Placed",cls:"nw"},{t:"Side"},{t:"Ticker"},{t:"Size",num:1},{t:"Reason",cls:"reason"}],
+  D.pending.map(o => [esc(o.created_ts), sidePill(o.side), {v: esc(o.ticker), cls: "tick"},
     o.amount_cad ? fmt$(o.amount_cad) : o.shares + " sh",
     `<div class="md">${mdInline(o.reason || "")}</div>`]),
   "None.");
 
 table("trades",
-  [{t:"Time"},{t:"Side"},{t:"Ticker"},{t:"Shares",num:1},{t:"Price",num:1},{t:"Realized",num:1},{t:"Reason",cls:"reason"}],
-  D.trades.map(t => [esc(t.ts), t.side.toUpperCase(), esc(t.ticker), t.shares,
+  [{t:"Time",cls:"nw"},{t:"Side"},{t:"Ticker"},{t:"Shares",num:1},{t:"Price",num:1},{t:"Realized",num:1},{t:"Reason",cls:"reason"}],
+  D.trades.map(t => [esc(t.ts), sidePill(t.side), {v: esc(t.ticker), cls: "tick"}, t.shares,
     Number(t.price).toFixed(3),
     t.realized_pnl != null ? {v: fmt$(t.realized_pnl), cls: t.realized_pnl >= 0 ? "up" : "down"} : "-",
     `<div class="md">${mdInline(t.reason || "")}</div>`]),
   "No trades yet.");
 
+/* clamp long trade theses to 3 lines with a more/less toggle */
+document.querySelectorAll("td.reason .md").forEach(el => {
+  el.classList.add("clamp");
+  if (el.scrollHeight > el.clientHeight + 4) {
+    const b = document.createElement("button");
+    b.className = "morebtn"; b.textContent = "more ▾";
+    b.addEventListener("click", () => {
+      const open = !el.classList.toggle("clamp");
+      b.textContent = open ? "less ▴" : "more ▾";
+    });
+    el.after(b);
+  } else {
+    el.classList.remove("clamp");
+  }
+});
+
 document.getElementById("dailies").innerHTML = (D.dailies && D.dailies.length)
   ? D.dailies.map((d, i) =>
-      `<details ${i === 0 ? "open" : ""}><summary style="cursor:pointer;font-weight:600;padding:4px 0">${esc(d.date)}</summary>
+      `<details class="day" ${i === 0 ? "open" : ""}><summary>${esc(d.date)}</summary>
        ${mdBlock(d.content)}</details>`).join("")
   : '<div class="empty">No daily summaries yet — generated by <code>python agent.py daily</code> after the close.</div>';
 
