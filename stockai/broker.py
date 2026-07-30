@@ -208,6 +208,16 @@ class Broker:
         ).fetchone()
         return row is not None
 
+    def minutes_since_last_session(self) -> float | None:
+        """Minutes since the last executed session, or None if none ever ran."""
+        row = self.db.execute(
+            "SELECT ts FROM journal WHERE kind='mode' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            return None
+        last = dt.datetime.strptime(row["ts"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+        return (dt.datetime.now(TZ) - last).total_seconds() / 60.0
+
     # ---------- fills ----------
 
     def _commission(self, shares: int, price: float) -> float:

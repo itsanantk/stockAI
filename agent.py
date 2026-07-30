@@ -25,21 +25,33 @@ from stockai import market, report
 from stockai.config import load_config
 
 
-def resolve_mode(mode, status, now, deep_done):
-    """Resolve --mode auto against the market clock, self-healing around
-    GitHub's best-effort cron (firings are often late, sometimes skipped).
+def resolve_mode(mode, status, now, deep_done, mins_since_last=None):
+    """Resolve --mode auto against the market clock.
 
-    Returns (mode, skip_reason). With redundant pre-market crons scheduled,
-    exactly one deep session runs per day: a duplicate pre-market firing is
-    skipped, and if every pre-market firing was dropped, the first run while
-    the market is open promotes itself from check-in to the full session.
+    GitHub's cron is best-effort — firings run late or get dropped outright —
+    so the workflow fires a BARRAGE of redundant crons and this function
+    decides which firings actually do AI work. Returns (mode, skip_reason):
+      - pre-market firing, deep session already ran  -> skip (no-op)
+      - pre-market firing, none ran yet              -> premarket deep session
+      - market open, no deep session yet today       -> promote to full session
+      - market open, last session < 50 min ago       -> skip (rate gate; the
+        caller still fills pending orders + snapshots so data stays fresh)
+      - market open otherwise                        -> checkin
+    Net effect: exactly one deep session and ~hourly check-ins per day, no
+    matter how many crons fire or how many get dropped.
     """
     import datetime as dt
     is_premarket_window = (status["detail"] == "pre-market"
                            and now.time() >= dt.time(7, 30))
     if mode == "auto":
         if status["is_open"]:
-            mode = "checkin" if deep_done else "full"
+            if not deep_done:
+                mode = "full"
+            elif mins_since_last is not None and mins_since_last < 50:
+                return mode, (f"last session ran {mins_since_last:.0f} min ago — "
+                              "check-ins are ~hourly; skipping the AI call this firing")
+            else:
+                mode = "checkin"
         elif is_premarket_window:
             if deep_done:
                 return mode, "pre-market session already ran today; duplicate firing skipped"
@@ -144,9 +156,17 @@ def main():
         now = dt.datetime.now(ZoneInfo("America/Toronto"))
         deep_done = broker.had_deep_session(now.strftime("%Y-%m-%d"))
 
-        mode, skip_reason = resolve_mode(args.mode, status, now, deep_done)
+        mode, skip_reason = resolve_mode(args.mode, status, now, deep_done,
+                                         broker.minutes_since_last_session())
         if skip_reason:
             print(f"[run] {skip_reason}")
+            if status["is_open"]:
+                # still keep the book and site fresh: fill queued orders,
+                # snapshot equity (the workflow's daily step redeploys the page)
+                for f in broker.fill_pending_orders():
+                    r = f["result"]
+                    print(f"[pending] {f['order']['side']} {f['order']['ticker']}: {r['status']}")
+                broker.snapshot()
             return
         if args.mode == "auto" and mode == "full":
             print("[run] pre-market session was missed today — promoting this "

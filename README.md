@@ -88,13 +88,18 @@ One-time setup (~5 minutes):
 4. Settings → Pages → Source: **GitHub Actions**.
 5. Actions tab → "stockAI trading session" → **Run workflow** to test once.
 
-After that it runs itself on weekdays: a pre-market deep session ~8:45 ET
-(with a ~9:18 backup firing, deduped), hourly check-ins while the market is
-open, and a near-close check-in ~15:41 ET. GitHub's cron is best-effort, so
-if every pre-market firing gets dropped the first open-market run promotes
-itself to the full session — no trading day loses its deep session.
-`--skip-if-closed` makes holiday firings a no-op, the dashboard URL updates
-after every session, and each run refreshes the daily summary.
+After that it runs itself on weekdays. GitHub's cron scheduler is best-effort
+(firings run late or get dropped), so the workflow fires a **barrage** of
+redundant crons and the agent decides which do AI work: a pre-market firing
+every 10 minutes (7:50–9:50 ET — the first one that survives runs the deep
+session, the rest exit in seconds) and a firing every 15 minutes while the
+market is open (a rate gate keeps AI check-ins ~hourly; the extra firings
+still fill pending orders, snapshot equity, and redeploy the dashboard, so
+the site stays fresh all day). If every pre-market firing is dropped, the
+first open-market firing promotes itself to the full session — no trading
+day can lose its deep session. `--skip-if-closed` makes holiday firings a
+no-op. Runner minutes are free on public repos, and the barrage adds no AI
+cost.
 
 > Why not Vercel? Vercel can serve the static dashboard, but its serverless
 > functions can't run 10-minute Python sessions that spawn the Claude Code CLI,
